@@ -7,6 +7,8 @@ import socketio
 from agpyutils.auth import get_auth_info
 from fastapi.security import HTTPAuthorizationCredentials
 
+from agcode_domain import session_service
+from agcode_domain.errors import SessionAccessDeniedError, SessionNotFoundError
 from agcode_infra.db import database as db
 from agcode_infra.orchestration import session_k8s as task_session
 
@@ -68,13 +70,18 @@ class _ProxyNamespace(socketio.AsyncNamespace):
         credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
         auth_info = await get_auth_info(credentials=credentials)
 
-        session = db.get_session(session_id)
-        if not session:
-            raise ConnectionRefusedError("session_not_found")
-        if session.user_id != auth_info.user_id:
-            raise ConnectionRefusedError("session_access_denied")
+        try:
+            upstream_base_url = session_service.get_owned_realtime_base_url(
+                db,
+                task_session,
+                session_id=session_id,
+                user_id=auth_info.user_id,
+            )
+        except SessionNotFoundError as exc:
+            raise ConnectionRefusedError("session_not_found") from exc
+        except SessionAccessDeniedError as exc:
+            raise ConnectionRefusedError("session_access_denied") from exc
 
-        upstream_base_url = task_session.get_pro_realtime_socketio_base_url(session_id)
         upstream = socketio.AsyncClient(
             reconnection=False,
             logger=False,
