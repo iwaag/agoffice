@@ -6,14 +6,17 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, HTTPException, Header, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
-#from routers.user import router as user_router
+
 AGENT_TIER = os.getenv("AGENT_TIER")
 if AGENT_TIER == "PRO":
     logging.info("AGENT_TIER is PRO")
-    from routers.chat_pro import socket_server as chat_socket_server, HandshakeLoggingASGIApp
+    from agcode_worker.routers.chat_pro import (
+        HandshakeLoggingASGIApp,
+        socket_server as chat_socket_server,
+    )
 else:
     logging.info("AGENT_TIER is not PRO")
-    from routers.chat_noob import router as chat_router
+    from agcode_worker.routers.chat_noob import router as chat_router
 
 app = FastAPI(
     title="agcode-worker"

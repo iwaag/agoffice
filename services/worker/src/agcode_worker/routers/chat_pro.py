@@ -4,7 +4,8 @@ from typing import Any
 from urllib.parse import parse_qs
 
 import socketio
-from services.pro_chat import ChatSession
+
+from agcode_worker.services.pro_chat import ChatSession
 
 socket_server = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
 _sessions: dict[str, ChatSession] = {}

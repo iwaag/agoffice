@@ -1,9 +1,9 @@
 import asyncio
 from typing import Any
 
-from services.chat_transport import ChatTransport
-from services.pro_chat_claude import run_claude_turn
-from services.pro_chat_codex import run_codex_turn
+from agcode_worker.services.chat_transport import ChatTransport
+from agcode_worker.services.pro_chat_claude import run_claude_turn
+from agcode_worker.services.pro_chat_codex import run_codex_turn
 
 
 def _build_prompt(transcript: list[dict[str, str]]) -> str:

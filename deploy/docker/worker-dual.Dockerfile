@@ -2,6 +2,7 @@ FROM python:3.12-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app/services/worker/src \
     PATH="/app/.venv/bin:$PATH"
 
 WORKDIR /app
@@ -22,8 +23,8 @@ COPY pyproject.toml uv.lock /app/
 
 RUN uv sync --frozen --no-dev
 
-COPY ./app /app/
+COPY ./services/worker/src /app/services/worker/src
 
 EXPOSE 8000
 
-CMD ["uvicorn", "main:combined_app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "agcode_worker.main:combined_app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

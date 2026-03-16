@@ -1,7 +1,7 @@
 import asyncio
 import os
 
-from services.chat_transport import ChatTransport
+from agcode_worker.services.chat_transport import ChatTransport
 
 WORKSPACE_ROOT = os.getenv("WORKSPACE_ROOT") or os.getcwd()
 CLAUDE_BIN = os.getenv("CLAUDE_BIN", "claude")

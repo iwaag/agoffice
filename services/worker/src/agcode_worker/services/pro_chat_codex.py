@@ -5,7 +5,7 @@ import tempfile
 from collections.abc import AsyncIterator
 from contextlib import suppress
 
-from services.chat_transport import ChatTransport
+from agcode_worker.services.chat_transport import ChatTransport
 
 WORKSPACE_ROOT = os.getenv("WORKSPACE_ROOT") or os.getcwd()
 CODEX_BIN = os.getenv("CODEX_BIN", "codex")
