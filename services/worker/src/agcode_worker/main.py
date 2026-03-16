@@ -3,7 +3,7 @@ logging.basicConfig(level=logging.DEBUG, force=True)
 import os
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, HTTPException, Header, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
@@ -14,6 +14,7 @@ if AGENT_TIER == "PRO":
         HandshakeLoggingASGIApp,
         socket_server as chat_socket_server,
     )
+    from agcode_worker.routers.tunnel import router as tunnel_router
 else:
     logging.info("AGENT_TIER is not PRO")
     from agcode_worker.routers.chat_noob import router as chat_router
@@ -30,6 +31,8 @@ app.add_middleware(
 )
 if AGENT_TIER != "PRO":
     app.include_router(chat_router, prefix="/chat", tags=["chat"])
+else:
+    app.include_router(tunnel_router, prefix="/tunnel", tags=["tunnel"])
 
 if AGENT_TIER == "PRO":
     combined_app = HandshakeLoggingASGIApp(chat_socket_server, other_asgi_app=app, socketio_path="chat/realtime")

@@ -1,0 +1,62 @@
+name: Build & Push Worker Images
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'services/worker/**'
+      - 'deploy/docker/worker.Dockerfile'
+      - 'deploy/docker/worker-dual.Dockerfile'
+      - 'pyproject.toml'
+      - 'uv.lock'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_BASE: ghcr.io/iwaag/agcode
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # worker_noob is not ready for deployment yet.
+      # - name: Build & push agcode-worker
+      #   uses: docker/build-push-action@v6
+      #   with:
+      #     context: .
+      #     file: deploy/docker/worker.Dockerfile
+      #     push: true
+      #     tags: |
+      #       ${{ env.IMAGE_BASE }}-worker:latest
+      #       ${{ env.IMAGE_BASE }}-worker:${{ github.sha }}
+      #     cache-from: type=gha
+      #     cache-to: type=gha,mode=max
+
+      - name: Build & push agcode-worker-dual
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/worker-dual.Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_BASE }}-worker-dual:latest
+            ${{ env.IMAGE_BASE }}-worker-dual:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

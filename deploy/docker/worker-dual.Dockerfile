@@ -16,6 +16,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
+RUN curl -Lk 'https://code.visualstudio.com/sha/download?build=stable&os=cli-linux-x64' \
+    | tar -xz -C /usr/local/bin
+
 RUN npm install -g @openai/codex @anthropic-ai/claude-code
 
 RUN pip install --no-cache-dir uv

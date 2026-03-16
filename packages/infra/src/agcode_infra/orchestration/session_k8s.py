@@ -11,7 +11,6 @@ from agcode_infra.db import database as db
 
 SETTINGS = get_session_runtime_settings()
 IMAGE_NAME_CODER_PRO = SETTINGS.image_name_coder_pro
-IMAGE_NAME_CODER_NOOB = SETTINGS.image_name_coder_noob
 NAMESPACE = SETTINGS.namespace
 STORAGE_CLASS_NAME = SETTINGS.storage_class_name
 PVC_SIZE = SETTINGS.pvc_size
@@ -45,9 +44,7 @@ def _session_resource_names(session_id: str) -> dict[str, str]:
     task_name = _to_k8s_name_fragment(session_id)
     return {
         "pro_pvc_name": f"pvc-session-{task_name}-pro",
-        "noob_pvc_name": f"pvc-session-{task_name}-noob",
         "pro_pod_name": f"worker-session-{task_name}-pro",
-        "noob_pod_name": f"worker-session-{task_name}-noob",
         "pro_service_name": f"svc-session-{task_name}-pro",
     }
 
@@ -115,7 +112,7 @@ def _build_pod(
     role: str,
     image: str,
     own_pvc_name: str,
-    peer_pvc_name: str,
+    peer_pvc_name: str | None = None,
     node_name: str | None = None,
 ) -> client.V1Pod:
     labels = {
@@ -124,6 +121,40 @@ def _build_pod(
         "type": "session-worker",
         "role": role,
     }
+    volume_mounts = [
+        client.V1VolumeMount(
+            name="own-task-data",
+            mount_path="/mnt/data",
+            read_only=False,
+        ),
+    ]
+    volumes = [
+        client.V1Volume(
+            name="own-task-data",
+            persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
+                claim_name=own_pvc_name,
+                read_only=False,
+            ),
+        ),
+    ]
+    if peer_pvc_name is not None:
+        volume_mounts.append(
+            client.V1VolumeMount(
+                name="peer-task-data",
+                mount_path="/mnt/peer-data",
+                read_only=True,
+            )
+        )
+        volumes.append(
+            client.V1Volume(
+                name="peer-task-data",
+                persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
+                    claim_name=peer_pvc_name,
+                    read_only=True,
+                ),
+            )
+        )
+
     return client.V1Pod(
         metadata=client.V1ObjectMeta(name=pod_name, labels=labels),
         spec=client.V1PodSpec(
@@ -133,40 +164,14 @@ def _build_pod(
                 client.V1Container(
                     name=f"{role}-container",
                     image=image,
-                    volume_mounts=[
-                        client.V1VolumeMount(
-                            name="own-task-data",
-                            mount_path="/mnt/data",
-                            read_only=False,
-                        ),
-                        client.V1VolumeMount(
-                            name="peer-task-data",
-                            mount_path="/mnt/peer-data",
-                            read_only=True,
-                        ),
-                    ],
+                    volume_mounts=volume_mounts,
                     env=[
                         client.V1EnvVar(name="TASK_ID", value=session_id),
                         client.V1EnvVar(name="SESSION_ROLE", value=role),
                     ],
                 )
             ],
-            volumes=[
-                client.V1Volume(
-                    name="own-task-data",
-                    persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
-                        claim_name=own_pvc_name,
-                        read_only=False,
-                    ),
-                ),
-                client.V1Volume(
-                    name="peer-task-data",
-                    persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
-                        claim_name=peer_pvc_name,
-                        read_only=True,
-                    ),
-                ),
-            ],
+            volumes=volumes,
         ),
     )
 
@@ -241,13 +246,10 @@ async def run_session(session_id: str, project_id: str, user_id: str) -> Session
     v1 = client.CoreV1Api()
     names = _session_resource_names(session_id)
     pro_pvc_name = names["pro_pvc_name"]
-    noob_pvc_name = names["noob_pvc_name"]
     pro_pod_name = names["pro_pod_name"]
-    noob_pod_name = names["noob_pod_name"]
     pro_service_name = names["pro_service_name"]
 
     _ensure_pvc(v1, pro_pvc_name)
-    _ensure_pvc(v1, noob_pvc_name)
 
     pro_pod_spec = _build_pod(
         pod_name=pro_pod_name,
@@ -256,7 +258,6 @@ async def run_session(session_id: str, project_id: str, user_id: str) -> Session
         role="pro",
         image=_resolve_image(IMAGE_NAME_CODER_PRO, "IMAGE_NAME_CODER_PRO"),
         own_pvc_name=pro_pvc_name,
-        peer_pvc_name=noob_pvc_name,
     )
     _create_or_reuse_pod(v1, pro_pod_spec)
     _ensure_service(
@@ -268,19 +269,6 @@ async def run_session(session_id: str, project_id: str, user_id: str) -> Session
             "role": "pro",
         },
     )
-    assigned_node_name = _wait_for_node_assignment(v1, pro_pod_name)
-
-    noob_pod_spec = _build_pod(
-        pod_name=noob_pod_name,
-        session_id=session_id,
-        user_id=user_id,
-        role="noob",
-        image=_resolve_image(IMAGE_NAME_CODER_NOOB, "IMAGE_NAME_CODER_NOOB"),
-        own_pvc_name=noob_pvc_name,
-        peer_pvc_name=pro_pvc_name,
-        node_name=assigned_node_name,
-    )
-    _create_or_reuse_pod(v1, noob_pod_spec)
     _wait_for_pod_ready(v1, pro_pod_name)
     _wait_for_service_endpoints(v1, pro_service_name)
 
