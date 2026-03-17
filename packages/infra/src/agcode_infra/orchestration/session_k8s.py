@@ -109,11 +109,12 @@ def _build_pod(
     pod_name: str,
     session_id: str,
     user_id: str,
+    token: str,
     role: str,
     image: str,
     own_pvc_name: str,
     peer_pvc_name: str | None = None,
-    node_name: str | None = None,
+    node_name: str | None = None
 ) -> client.V1Pod:
     labels = {
         "task-id": session_id,
@@ -168,6 +169,9 @@ def _build_pod(
                     env=[
                         client.V1EnvVar(name="TASK_ID", value=session_id),
                         client.V1EnvVar(name="SESSION_ROLE", value=role),
+                        client.V1EnvVar(name="USER_ID", value=user_id),
+                        client.V1EnvVar(name="AUTH_TOKEN", value=token),
+
                     ],
                 )
             ],
@@ -237,7 +241,7 @@ def get_pro_realtime_socketio_base_url(session_id: str) -> str:
     return f"http://{service_name}.{NAMESPACE}.svc.cluster.local:{WORKER_PORT}"
 
 
-async def run_session(session_id: str, project_id: str, user_id: str) -> SessionInfo:
+async def run_session(session_id: str, project_id: str, user_id: str, token: str) -> SessionInfo:
     session_info = db.get_session(session_id)
     if not session_info:
         raise ValueError(f"Session {session_id} not found")

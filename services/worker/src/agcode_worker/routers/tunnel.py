@@ -25,13 +25,29 @@ class TunnelAlreadyRunningResponse(BaseModel):
     url: str | None = None
 
 
+class TunnelManualAuthRequiredResponse(BaseModel):
+    status: Literal["manual_auth_required"]
+    pid: int
+    redirect_url: str
+    code: str
+
+
 def _to_response(
     result: TunnelStartResult,
-) -> TunnelStartedResponse | TunnelAlreadyRunningResponse:
+) -> TunnelStartedResponse | TunnelAlreadyRunningResponse | TunnelManualAuthRequiredResponse:
     if result.status == "ok":
         if result.url is None:
             raise HTTPException(status_code=500, detail="tunnel started without URL")
         return TunnelStartedResponse(status="ok", pid=result.pid, url=result.url)
+    if result.status == "manual_auth_required":
+        if result.redirect_url is None or result.code is None:
+            raise HTTPException(status_code=500, detail="manual auth required without prompt details")
+        return TunnelManualAuthRequiredResponse(
+            status="manual_auth_required",
+            pid=result.pid,
+            redirect_url=result.redirect_url,
+            code=result.code,
+        )
     return TunnelAlreadyRunningResponse(
         status="already_running",
         pid=result.pid,
@@ -41,11 +57,11 @@ def _to_response(
 
 @router.post(
     "/start",
-    response_model=TunnelStartedResponse | TunnelAlreadyRunningResponse,
+    response_model=TunnelStartedResponse | TunnelAlreadyRunningResponse | TunnelManualAuthRequiredResponse,
 )
 async def start_tunnel_endpoint(
     req: StartTunnelRequest,
-) -> TunnelStartedResponse | TunnelAlreadyRunningResponse:
+) -> TunnelStartedResponse | TunnelAlreadyRunningResponse | TunnelManualAuthRequiredResponse:
     try:
         result = await start_tunnel(
             tunnel_name=req.tunnel_name,

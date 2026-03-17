@@ -23,7 +23,7 @@ class SessionRepository(Protocol):
 
 
 class SessionRuntime(Protocol):
-    async def run_session(self, session_id: str, project_id: str, user_id: str) -> SessionInfo: ...
+    async def run_session(self, session_id: str, project_id: str, user_id: str, token: str) -> SessionInfo: ...
     def get_pro_realtime_socketio_base_url(self, session_id: str) -> str: ...
 
 
@@ -62,6 +62,7 @@ async def open_session(
     *,
     session_id: str,
     user_id: str,
+    token: str
 ) -> SessionInfo:
     session = get_owned_session(repository, session_id=session_id, user_id=user_id)
     await runtime.run_session(session_id=session.id, project_id=session.project_id, user_id=user_id)
