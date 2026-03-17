@@ -7,7 +7,7 @@ on:
     paths:
       - 'services/worker/**'
       - 'deploy/docker/worker.Dockerfile'
-      - 'deploy/docker/worker-dual.Dockerfile'
+      - 'deploy/docker/worker-pro.Dockerfile'
       - 'pyproject.toml'
       - 'uv.lock'
 
@@ -49,14 +49,14 @@ jobs:
       #     cache-from: type=gha
       #     cache-to: type=gha,mode=max
 
-      - name: Build & push agcode-worker-dual
+      - name: Build & push coder_pro
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: deploy/docker/worker-dual.Dockerfile
+          file: deploy/docker/worker-ori.Dockerfile
           push: true
           tags: |
-            ${{ env.IMAGE_BASE }}-worker-dual:latest
-            ${{ env.IMAGE_BASE }}-worker-dual:${{ github.sha }}
+            coder-pro:latest
+            coder-pro:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
