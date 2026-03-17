@@ -53,7 +53,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: deploy/docker/worker-ori.Dockerfile
+          file: deploy/docker/worker-pro.Dockerfile
           push: true
           tags: |
             coder-pro:latest
