@@ -1,10 +1,13 @@
+import asyncio
+import json
+import http.client
 import os
 import re
 import time
 
-import httpx
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
+from kubernetes.stream import portforward
 
 from agcode_domain.schema import SessionInfo, TunnelInfo
 from agcode_infra.config import get_session_runtime_settings
@@ -19,7 +22,11 @@ SCHEDULING_TIMEOUT_SECONDS = SETTINGS.scheduling_timeout_seconds
 WORKER_PORT = SETTINGS.worker_port
 WORKER_SOCKETIO_PATH = SETTINGS.worker_socketio_path
 REMOTE_CONFIG_PATH = SETTINGS.remote_config_path
-
+HATCHET_CLIENT_TOKEN = os.getenv("HATCHET_CLIENT_TOKEN")
+HATCHET_CLIENT_HOST_PORT = os.getenv("HATCHET_CLIENT_HOST_PORT")
+HATCHET_CLIENT_SERVER_URL = os.getenv("HATCHET_CLIENT_SERVER_URL")
+HATCHET_CLIENT_TLS_STRATEGY = os.getenv("HATCHET_CLIENT_TLS_STRATEGY", "none")
+CLIENT_ID = os.getenv("CLIENT_ID", "agcode")
 
 def _to_k8s_name_fragment(value: str) -> str:
     normalized = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
@@ -185,6 +192,12 @@ def _build_pod(
                         client.V1EnvVar(name="SESSION_ROLE", value=role),
                         client.V1EnvVar(name="USER_ID", value=user_id),
                         client.V1EnvVar(name="AUTH_TOKEN", value=token),
+                        client.V1EnvVar(name="AGENT_TIER", value="PRO"),
+                        client.V1EnvVar(name="CLIENT_ID", value=CLIENT_ID),
+                        client.V1EnvVar(name="HATCHET_CLIENT_TOKEN", value=HATCHET_CLIENT_TOKEN),
+                        client.V1EnvVar(name="HATCHET_CLIENT_HOST_PORT", value=HATCHET_CLIENT_SERVER_URL),
+                        client.V1EnvVar(name="HATCHET_CLIENT_SERVER_URL", value=HATCHET_CLIENT_SERVER_URL),
+                        client.V1EnvVar(name="HATCHET_CLIENT_TLS_STRATEGY", value="none"),
 
                     ],
                 )
@@ -192,6 +205,43 @@ def _build_pod(
             volumes=volumes,
         ),
     )
+
+
+def _container_env_map(container: client.V1Container | None) -> dict[str, str | None]:
+    if container is None or not container.env:
+        return {}
+    return {env.name: env.value for env in container.env}
+
+
+def _pod_matches_spec(existing_pod: client.V1Pod, desired_pod: client.V1Pod) -> bool:
+    existing_containers = existing_pod.spec.containers or []
+    desired_containers = desired_pod.spec.containers or []
+    if len(existing_containers) != len(desired_containers):
+        return FalseCLIENT_ID
+
+    for existing_container, desired_container in zip(existing_containers, desired_containers):
+        if existing_container.name != desired_container.name:
+            return False
+        if existing_container.image != desired_container.image:
+            return False
+        if _container_env_map(existing_container) != _container_env_map(desired_container):
+            return False
+
+    return True
+
+
+def _wait_for_pod_deleted(v1: client.CoreV1Api, pod_name: str) -> None:
+    deadline = time.time() + SCHEDULING_TIMEOUT_SECONDS
+    while time.time() < deadline:
+        try:
+            v1.read_namespaced_pod(name=pod_name, namespace=NAMESPACE)
+        except ApiException as e:
+            if e.status == 404:
+                return
+            raise
+        time.sleep(1)
+
+    raise TimeoutError(f"Pod {pod_name} was not deleted within {SCHEDULING_TIMEOUT_SECONDS} seconds")
 
 
 def _create_or_reuse_pod(v1: client.CoreV1Api, pod_spec: client.V1Pod) -> client.V1Pod:
@@ -202,8 +252,21 @@ def _create_or_reuse_pod(v1: client.CoreV1Api, pod_spec: client.V1Pod) -> client
         return pod
     except ApiException as e:
         if e.status == 409:
-            print(f"Pod {pod_name} already exists. Reusing...")
-            return v1.read_namespaced_pod(name=pod_name, namespace=NAMESPACE)
+            existing_pod = v1.read_namespaced_pod(name=pod_name, namespace=NAMESPACE)
+            if _pod_matches_spec(existing_pod, pod_spec):
+                print(f"Pod {pod_name} already exists. Reusing...")
+                return existing_pod
+
+            print(f"Pod {pod_name} already exists, but image/env changed. Recreating...")
+            v1.delete_namespaced_pod(
+                name=pod_name,
+                namespace=NAMESPACE,
+                grace_period_seconds=0,
+            )
+            _wait_for_pod_deleted(v1, pod_name)
+            pod = v1.create_namespaced_pod(namespace=NAMESPACE, body=pod_spec)
+            print(f"Pod {pod_name} recreated successfully.")
+            return pod
         raise
 
 
@@ -289,23 +352,108 @@ def get_pro_realtime_socketio_base_url(session_id: str) -> str:
     return f"http://{service_name}.{NAMESPACE}.svc.cluster.local:{WORKER_PORT}"
 
 
-def get_pro_worker_base_url(session_id: str) -> str:
-    return get_pro_realtime_socketio_base_url(session_id)
+def _post_json_via_pod_portforward(
+    v1: client.CoreV1Api,
+    *,
+    pod_name: str,
+    path: str,
+    payload: dict[str, str],
+    timeout: float = 30.0,
+) -> tuple[int, dict]:
+    print(
+        f"[start_tunnel] opening pod port-forward: namespace={NAMESPACE} pod={pod_name} "
+        f"remote_port={WORKER_PORT} path={path} timeout={timeout}"
+    )
+    pf = portforward(
+        v1.connect_get_namespaced_pod_portforward,
+        pod_name,
+        NAMESPACE,
+        ports=str(WORKER_PORT),
+    )
+    print(f"[start_tunnel] port-forward object created for pod={pod_name}")
+
+    initial_error = pf.error(WORKER_PORT)
+    print(f"[start_tunnel] initial port-forward error for port {WORKER_PORT}: {initial_error}")
+
+    sock = pf.socket(WORKER_PORT)
+    sock.setblocking(True)
+    sock.settimeout(timeout)
+    print(f"[start_tunnel] acquired port-forward socket for pod={pod_name} port={WORKER_PORT}")
+
+    connection = http.client.HTTPConnection("192.168.0.120", WORKER_PORT, timeout=timeout)
+    connection.sock = sock
+    try:
+        print(f"[start_tunnel] sending HTTP request to worker via port-forward: path={path}")
+        connection.request(
+            "POST",
+            path,
+            body=json.dumps(payload),
+            headers={"Content-Type": "application/json"},
+        )
+        post_request_error = pf.error(WORKER_PORT)
+        print(f"[start_tunnel] request sent. port-forward error for port {WORKER_PORT}: {post_request_error}")
+
+        print(f"[start_tunnel] waiting for HTTP response from worker: pod={pod_name} path={path}")
+        response = connection.getresponse()
+        print(
+            f"[start_tunnel] received HTTP response headers: status={response.status} "
+            f"reason={response.reason}"
+        )
+        response_body = response.read()
+        print(f"[start_tunnel] received HTTP response body bytes={len(response_body)}")
+        portforward_error = pf.error(WORKER_PORT)
+        if portforward_error is not None:
+            raise RuntimeError(f"Pod port-forward failed: {portforward_error}")
+        if not response_body:
+            return response.status, {}
+        return response.status, json.loads(response_body)
+    except Exception as exc:
+        current_error = None
+        try:
+            current_error = pf.error(WORKER_PORT)
+        except Exception as pf_exc:
+            current_error = f"<failed to read port-forward error: {pf_exc}>"
+        print(
+            f"[start_tunnel] port-forward request failed: type={type(exc).__name__} "
+            f"error={exc} portforward_error={current_error}"
+        )
+        raise
+    finally:
+        print(f"[start_tunnel] closing HTTP connection for pod={pod_name}")
+        connection.close()
+        close_pf = getattr(pf, "close", None)
+        if callable(close_pf):
+            print(f"[start_tunnel] closing port-forward for pod={pod_name}")
+            close_pf()
 
 
 async def start_tunnel(session_id: str, tunnel_name: str, token: str) -> TunnelInfo:
-    base_url = get_pro_worker_base_url(session_id)
-    async with httpx.AsyncClient(base_url=base_url, timeout=30.0) as client:
-        response = await client.post(
-            "/tunnel/start",
-            json={
-                "tunnel_name": tunnel_name,
-                "host_token": token,
-            },
-        )
-
-    response.raise_for_status()
-    payload = response.json()
+    print(f"[start_tunnel] loading kubeconfig from {REMOTE_CONFIG_PATH}")
+    config.load_kube_config(config_file=str(REMOTE_CONFIG_PATH))
+    v1 = client.CoreV1Api()
+    names = _session_resource_names(session_id)
+    pod_name = names["pro_pod_name"]
+    print(
+        f"[start_tunnel] starting tunnel request: session_id={session_id} pod_name={pod_name} "
+        f"tunnel_name={tunnel_name}"
+    )
+    print(f"[start_tunnel] waiting for pod readiness: pod={pod_name}")
+    _wait_for_pod_ready(v1, pod_name)
+    print(f"[start_tunnel] pod is ready: pod={pod_name}")
+    status_code, payload = await asyncio.to_thread(
+        _post_json_via_pod_portforward,
+        v1,
+        pod_name=pod_name,
+        path="/tunnel/start",
+        payload={
+            "tunnel_name": tunnel_name,
+            "host_token": token,
+        },
+    )
+    print(f"[start_tunnel] worker response parsed: status_code={status_code} payload={payload}")
+    if status_code >= 400:
+        detail = payload.get("detail") if isinstance(payload, dict) else None
+        raise RuntimeError(detail or f"Tunnel start failed with status {status_code}")
     if payload.get("status") == "manual_auth_required":
         raise RuntimeError("Tunnel requires manual auth")
     return TunnelInfo(tunnel_name=payload["tunnel_name"])

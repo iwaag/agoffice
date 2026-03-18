@@ -1,6 +1,6 @@
 services:
   coder_pro:
-    image: iwaag/coder-pro:latest
+    image: iwaag/agcode-coder-pro:latest
     build:
       context: ../..
       dockerfile: deploy/docker/worker-pro.Dockerfile
