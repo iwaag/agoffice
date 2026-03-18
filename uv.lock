@@ -14,6 +14,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "agpyutils" },
     { name = "fastapi", extra = ["standard"] },
+    { name = "httpx" },
     { name = "kubernetes" },
     { name = "nanoid" },
     { name = "psycopg2-binary" },
@@ -28,6 +29,7 @@ dependencies = [
 requires-dist = [
     { name = "agpyutils", git = "https://github.com/iwaag/agpyutils.git?rev=main" },
     { name = "fastapi", extras = ["standard"] },
+    { name = "httpx" },
     { name = "kubernetes" },
     { name = "nanoid" },
     { name = "psycopg2-binary" },
@@ -40,8 +42,8 @@ requires-dist = [
 
 [[package]]
 name = "agpyutils"
-version = "0.1.37"
-source = { git = "https://github.com/iwaag/agpyutils.git?rev=main#bc69c532a75b808ec30f2b1c7ec98b522d812f38" }
+version = "0.1.38"
+source = { git = "https://github.com/iwaag/agpyutils.git?rev=main#55c48540a5481729894b3976a4a79ffcfd924af3" }
 dependencies = [
     { name = "cryptography" },
     { name = "fastapi" },
@@ -808,7 +810,7 @@ wheels = [
 
 [[package]]
 name = "hatchet-sdk"
-version = "1.29.0"
+version = "1.29.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -823,9 +825,9 @@ dependencies = [
     { name = "typing-inspection" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/4c/a6/c61d74b313ba4fb4f7c3eb097f09200004f919825cef55ea8ea2d5e5da7a/hatchet_sdk-1.29.0.tar.gz", hash = "sha256:81c0bcd3e11ae66613cb87fdbc3ddb1f2f42e6c9c60b23c8fc44d77d8a7ae43c", size = 267260, upload-time = "2026-03-16T15:53:20.449Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/14/7b/4100df011b9715a81b48eb00d0197baa41758bd3d1f7bd7be4c2253eb922/hatchet_sdk-1.29.2.tar.gz", hash = "sha256:b0b3ccaee5d1b45392565af2e7bebcb6ba2b256c2edd1dfb1b3a0b274b43a221", size = 267692, upload-time = "2026-03-17T19:08:31.371Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/67/f5/c846094f23fb727189a34f33c46d15fbb6a04e3a4b841e29fafea5160152/hatchet_sdk-1.29.0-py3-none-any.whl", hash = "sha256:0bfaedf835a754d7fbf32b6d70e0723b9a6bb3c3b35dc17e42bcb1089aa069c2", size = 585557, upload-time = "2026-03-16T15:53:18.475Z" },
+    { url = "https://files.pythonhosted.org/packages/25/b6/cc2de6eaeea75ee377e30bfde75fdd9808d41b1353365d3d68619b4cbf90/hatchet_sdk-1.29.2-py3-none-any.whl", hash = "sha256:e0776ae4a459f9c580ab43269b13b5db85e7b0f3e6acb41a46231b9c471c3a15", size = 586138, upload-time = "2026-03-17T19:08:29.297Z" },
 ]
 
 [[package]]
@@ -1767,15 +1769,15 @@ wheels = [
 
 [[package]]
 name = "sse-starlette"
-version = "3.3.2"
+version = "3.3.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
     { name = "starlette" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5a/9f/c3695c2d2d4ef70072c3a06992850498b01c6bc9be531950813716b426fa/sse_starlette-3.3.2.tar.gz", hash = "sha256:678fca55a1945c734d8472a6cad186a55ab02840b4f6786f5ee8770970579dcd", size = 32326, upload-time = "2026-02-28T11:24:34.36Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/14/2f/9223c24f568bb7a0c03d751e609844dce0968f13b39a3f73fbb3a96cd27a/sse_starlette-3.3.3.tar.gz", hash = "sha256:72a95d7575fd5129bd0ae15275ac6432bb35ac542fdebb82889c24bb9f3f4049", size = 32420, upload-time = "2026-03-17T20:05:55.529Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/61/28/8cb142d3fe80c4a2d8af54ca0b003f47ce0ba920974e7990fa6e016402d1/sse_starlette-3.3.2-py3-none-any.whl", hash = "sha256:5c3ea3dad425c601236726af2f27689b74494643f57017cafcb6f8c9acfbb862", size = 14270, upload-time = "2026-02-28T11:24:32.984Z" },
+    { url = "https://files.pythonhosted.org/packages/78/e2/b8cff57a67dddf9a464d7e943218e031617fb3ddc133aeeb0602ff5f6c85/sse_starlette-3.3.3-py3-none-any.whl", hash = "sha256:c5abb5082a1cc1c6294d89c5290c46b5f67808cfdb612b7ec27e8ba061c22e8d", size = 14329, upload-time = "2026-03-17T20:05:54.35Z" },
 ]
 
 [[package]]
