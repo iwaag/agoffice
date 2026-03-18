@@ -109,8 +109,7 @@ async def start_tunnel(*, tunnel_name: str, host_token: str) -> TunnelStartResul
     finally:
         log_fd.close()
     PID_FILE.write_text(str(proc.pid), encoding="utf-8")
-    my_token = await issue_own_client_access_token(AUTH_TOKEN)
-    my_auth_info = await auth_info_from_bearer_token(my_token)
+    my_auth_info = await auth_info_from_bearer_token(AUTH_TOKEN)
     for _ in range(TUNNEL_TIMEOUT):
         try:
             await asyncio.wait_for(proc.wait(), timeout=1)
