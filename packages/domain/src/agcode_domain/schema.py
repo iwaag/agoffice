@@ -34,7 +34,77 @@ class TunnelInfo(BaseModel):
     tunnel_name: str
 
 
+class NoobWorkspacePrepSpec(BaseModel):
+    repo_url: str = Field(min_length=1)
+    ref: Optional[str] = None
+    depth: Optional[int] = Field(default=None, ge=1)
+    sub_path: Optional[str] = None
+    context_files: List[str] = Field(default_factory=list)
+    mode: str = "clone"
+
+
+class NoobSessionCreateRequest(BaseModel):
+    title: str
+    project_id: str
+    initial_instruction: str = Field(min_length=1)
+    prep: Optional[NoobWorkspacePrepSpec] = None
+    keep_context_default: bool = True
+
+
+class NoobSessionUpdate(BaseModel):
+    title: Optional[str] = None
+    finished_at: Optional[datetime] = None
+    config: Optional[Dict[str, Any]] = None
+
+
+class NoobSessionInfo(NoobSessionUpdate):
+    id: str
+    user_id: str
+    project_id: str
+    initial_instruction: str
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+
+class NoobThreadCreateRequest(BaseModel):
+    title: Optional[str] = None
+    keep_context: bool = True
+
+
+class NoobThreadInfo(BaseModel):
+    id: str
+    noob_session_id: str
+    title: Optional[str] = None
+    keep_context: bool = True
+    status: str = "idle"
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+
+class NoobWorkspacePrepRequest(BaseModel):
+    spec: NoobWorkspacePrepSpec
+
+
+class NoobWorkspacePrepStatus(BaseModel):
+    status: str
+    updated_at: Optional[datetime] = None
+    error: Optional[str] = None
+    workspace_path: Optional[str] = None
+    repo_url: Optional[str] = None
+    ref: Optional[str] = None
+
+
 class NoobTaskRequest(BaseModel):
+    instruction: str = Field(min_length=1)
+    context_file_paths: List[str] = Field(default_factory=list)
+    workspace_path: Optional[str] = None
+    output_file_path: str = "artifacts/response.md"
+    system_prompt: Optional[str] = None
+    model: Optional[str] = None
+    thread_id: Optional[str] = None
+
+
+class NoobThreadRequest(BaseModel):
     instruction: str = Field(min_length=1)
     context_file_paths: List[str] = Field(default_factory=list)
     workspace_path: Optional[str] = None
@@ -62,6 +132,7 @@ class NoobTaskResult(BaseModel):
     stdout_path: Optional[str] = None
     stderr_path: Optional[str] = None
     error: Optional[str] = None
+    thread_id: Optional[str] = None
 
 
 class NoobTaskEvent(BaseModel):

@@ -10,7 +10,15 @@ from kubernetes import client, config
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import portforward, stream
 
-from agcode_domain.schema import NoobTaskEvents, NoobTaskRequest, NoobTaskResult, NoobTaskStatus, SessionInfo, TunnelInfo
+from agcode_domain.schema import (
+    NoobTaskEvents,
+    NoobTaskRequest,
+    NoobTaskResult,
+    NoobTaskStatus,
+    NoobWorkspacePrepStatus,
+    SessionInfo,
+    TunnelInfo,
+)
 from agcode_infra.config import get_session_runtime_settings
 from agcode_infra.db import database as db
 
@@ -42,6 +50,8 @@ NOOB_REQUEST_PATH = f"{NOOB_MOUNT_PATH}/control/request.json"
 NOOB_STATUS_PATH = f"{NOOB_MOUNT_PATH}/state/status.json"
 NOOB_RESULT_PATH = f"{NOOB_MOUNT_PATH}/state/result.json"
 NOOB_EVENTS_PATH = f"{NOOB_MOUNT_PATH}/events/events.jsonl"
+NOOB_CONTEXT_READY_PATH = f"{NOOB_MOUNT_PATH}/state/context-ready.json"
+NOOB_CONTEXT_ERROR_PATH = f"{NOOB_MOUNT_PATH}/state/context-error.json"
 
 
 def _is_local_microk8s_mode() -> bool:
@@ -284,6 +294,8 @@ def _session_agent_ids(session_info: object) -> set[str]:
 
 
 def _is_noob_session(session_info: object) -> bool:
+    if hasattr(session_info, "initial_instruction"):
+        return True
     return bool(_session_agent_ids(session_info) & {"NOOB", "AGCODE_WORKER_NOOB"})
 
 
@@ -447,8 +459,15 @@ def _get_session_or_raise(session_id: str) -> object:
     return session_info
 
 
+def _get_any_session_or_raise(session_id: str) -> object:
+    noob_session = db.get_noob_session(session_id)
+    if noob_session is not None:
+        return noob_session
+    return _get_session_or_raise(session_id)
+
+
 def _get_noob_session_or_raise(session_id: str) -> object:
-    session_info = _get_session_or_raise(session_id)
+    session_info = _get_any_session_or_raise(session_id)
     if not _is_noob_session(session_info):
         raise RuntimeError(f"Session {session_id} is not a NOOB session")
     return session_info
@@ -605,6 +624,20 @@ async def get_noob_task_events(session_id: str, tail: int = 200) -> NoobTaskEven
     return NoobTaskEvents.model_validate({"events": events})
 
 
+async def get_noob_workspace_status(session_id: str) -> NoobWorkspacePrepStatus:
+    _get_noob_session_or_raise(session_id)
+    v1 = _load_kube_v1()
+    pod_name = get_noob_pod_name(session_id)
+    _wait_for_pod_ready(v1, pod_name)
+    ready_payload = await asyncio.to_thread(_read_optional_json_file, v1, pod_name=pod_name, path=NOOB_CONTEXT_READY_PATH)
+    if ready_payload:
+        return NoobWorkspacePrepStatus.model_validate(ready_payload)
+    error_payload = await asyncio.to_thread(_read_optional_json_file, v1, pod_name=pod_name, path=NOOB_CONTEXT_ERROR_PATH)
+    if error_payload:
+        return NoobWorkspacePrepStatus.model_validate(error_payload)
+    return NoobWorkspacePrepStatus(status="pending")
+
+
 def _post_json_via_pod_portforward(
     v1: client.CoreV1Api,
     *,
@@ -720,9 +753,7 @@ async def start_tunnel(session_id: str, tunnel_name: str, token: str) -> TunnelI
 
 
 async def run_session(session_id: str, project_id: str, user_id: str, token: str) -> SessionInfo:
-    session_info = db.get_session(session_id)
-    if not session_info:
-        raise ValueError(f"Session {session_id} not found")
+    session_info = _get_any_session_or_raise(session_id)
 
     config.load_kube_config(config_file=str(REMOTE_CONFIG_PATH))
     v1 = client.CoreV1Api()

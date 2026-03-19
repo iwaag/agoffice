@@ -114,7 +114,11 @@ async function runRequest(request) {
 
   await writeFile(eventsPath, "", "utf8");
   await rm(resultPath, { force: true });
-  await appendEvent({ type: "accepted", session_id: process.env.TASK_ID || null });
+  await appendEvent({
+    type: "accepted",
+    session_id: process.env.TASK_ID || null,
+    payload: { thread_id: request.thread_id || null },
+  });
   await updateStatus("running");
   await appendEvent({
     type: "started",
@@ -158,6 +162,7 @@ async function runRequest(request) {
     output_path: outputPath,
     stdout_path: stdoutPath,
     stderr_path: stderrPath,
+    thread_id: request.thread_id || null,
   };
   try {
     resultPayload.content = await readFile(outputPath, "utf8");
@@ -196,9 +201,13 @@ async function pollOnce() {
     const message = error instanceof Error ? error.message : String(error);
     await appendEvent({
       type: "failed",
-      payload: { error: message },
+      payload: { error: message, thread_id: request.thread_id || null },
     });
-    await writeJsonAtomic(resultPath, { error: message, completed_at: nowIso() });
+    await writeJsonAtomic(resultPath, {
+      error: message,
+      completed_at: nowIso(),
+      thread_id: request.thread_id || null,
+    });
     await updateStatus("failed", { error: message });
   } finally {
     await rm(claimedPath, { force: true });

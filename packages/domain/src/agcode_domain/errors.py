@@ -8,3 +8,11 @@ class SessionNotFoundError(SessionError):
 
 class SessionAccessDeniedError(SessionError):
     pass
+
+
+class NoobSessionConflictError(SessionError):
+    pass
+
+
+class NoobThreadNotFoundError(SessionError):
+    pass
