@@ -1,23 +1,16 @@
 import logging
 logging.basicConfig(level=logging.DEBUG, force=True)
-import os
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-AGENT_TIER = os.getenv("AGENT_TIER")
-if AGENT_TIER == "PRO":
-    logging.info("AGENT_TIER is PRO")
-    from agcode_worker.routers.chat_pro import (
-        HandshakeLoggingASGIApp,
-        socket_server as chat_socket_server,
-    )
-    from agcode_worker.routers.tunnel import router as tunnel_router
-else:
-    logging.info("AGENT_TIER is not PRO")
-    from agcode_worker.routers.chat_noob import router as chat_router
+from agcode_worker.routers.chat_pro import (
+    HandshakeLoggingASGIApp,
+    socket_server as chat_socket_server,
+)
+from agcode_worker.routers.tunnel import router as tunnel_router
 
 app = FastAPI(
     title="agcode-worker"
@@ -29,15 +22,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-if AGENT_TIER != "PRO":
-    app.include_router(chat_router, prefix="/chat", tags=["chat"])
-else:
-    app.include_router(tunnel_router, prefix="/tunnel", tags=["tunnel"])
+app.include_router(tunnel_router, prefix="/tunnel", tags=["tunnel"])
 
-if AGENT_TIER == "PRO":
-    combined_app = HandshakeLoggingASGIApp(chat_socket_server, other_asgi_app=app, socketio_path="chat/realtime")
-else:
-    combined_app = app
+combined_app = HandshakeLoggingASGIApp(chat_socket_server, other_asgi_app=app, socketio_path="chat/realtime")
 
 ASYNCAPI_SPEC_PATH = Path(__file__).resolve().parent / "asyncapi" / "realtime_chat.yaml"
 
@@ -53,18 +40,17 @@ async def health():
     return {"status": "ok"}
 
 
-if AGENT_TIER == "PRO":
-    @app.get("/asyncapi.yaml", include_in_schema=False)
-    async def asyncapi_spec() -> Response:
-        return Response(
-            content=ASYNCAPI_SPEC_PATH.read_text(encoding="utf-8"),
-            media_type="application/yaml",
-        )
+@app.get("/asyncapi.yaml", include_in_schema=False)
+async def asyncapi_spec() -> Response:
+    return Response(
+        content=ASYNCAPI_SPEC_PATH.read_text(encoding="utf-8"),
+        media_type="application/yaml",
+    )
 
 
-    @app.get("/asyncapi", include_in_schema=False)
-    async def asyncapi_docs() -> HTMLResponse:
-        html = """<!doctype html>
+@app.get("/asyncapi", include_in_schema=False)
+async def asyncapi_docs() -> HTMLResponse:
+    html = """<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -171,4 +157,4 @@ if AGENT_TIER == "PRO":
 </body>
 </html>
 """
-        return HTMLResponse(content=html)
+    return HTMLResponse(content=html)

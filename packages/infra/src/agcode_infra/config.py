@@ -37,6 +37,7 @@ class SessionRuntimeSettings:
     image_name_coder_pro: str | None
     image_name_coder_noob: str | None
     local_image_name_coder_pro: str | None
+    local_image_name_coder_noob: str | None
     worker_build_id: str
     namespace: str
     storage_class_name: str
@@ -45,6 +46,8 @@ class SessionRuntimeSettings:
     worker_port: int
     worker_socketio_path: str
     remote_config_path: Path
+    noob_runtime_class_name: str | None
+    noob_mount_path: str
 
 
 def get_database_settings() -> DatabaseSettings:
@@ -71,6 +74,7 @@ def get_session_runtime_settings() -> SessionRuntimeSettings:
         image_name_coder_pro=os.getenv("IMAGE_NAME_CODER_PRO"),
         image_name_coder_noob=os.getenv("IMAGE_NAME_CODER_NOOB"),
         local_image_name_coder_pro=os.getenv("LOCAL_IMAGE_NAME_CODER_PRO"),
+        local_image_name_coder_noob=os.getenv("LOCAL_IMAGE_NAME_CODER_NOOB"),
         worker_build_id=os.getenv("WORKER_BUILD_ID", ""),
         namespace=os.getenv("SESSION_K8S_NAMESPACE", "default"),
         storage_class_name=os.getenv("SESSION_K8S_STORAGE_CLASS", "microk8s-hostpath"),
@@ -79,4 +83,6 @@ def get_session_runtime_settings() -> SessionRuntimeSettings:
         worker_port=int(os.getenv("SESSION_WORKER_PORT", "8000")),
         worker_socketio_path=os.getenv("SESSION_WORKER_SOCKETIO_PATH", "/chat/realtime"),
         remote_config_path=Path(os.getenv("SESSION_REMOTE_CONFIG_PATH", str(default_remote_config))),
+        noob_runtime_class_name=os.getenv("SESSION_NOOB_RUNTIME_CLASS", "runsc"),
+        noob_mount_path=os.getenv("SESSION_NOOB_MOUNT_PATH", "/mnt/session"),
     )

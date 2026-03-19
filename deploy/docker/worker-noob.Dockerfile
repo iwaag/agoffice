@@ -1,30 +1,15 @@
-FROM python:3.12-bookworm
+FROM node:20-bookworm-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app/services/worker/src \
-    PATH="/app/.venv/bin:$PATH"
+ENV NOOB_SESSION_ROOT=/mnt/session \
+    NOOB_AGENT_COMMAND=pi-coding-agent
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    ca-certificates \
-    gnupg \
-    git \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs \
-    && rm -rf /var/lib/apt/lists/*
-
 RUN npm install -g @mariozechner/pi-coding-agent
 
-RUN pip install --no-cache-dir uv
-COPY pyproject.toml uv.lock /app/
+COPY ./services/worker_noob/noob_runner.mjs /app/noob_runner.mjs
+COPY ./services/worker_noob/entrypoint.sh /app/entrypoint.sh
 
-RUN uv sync --frozen --no-dev
+RUN chmod +x /app/entrypoint.sh
 
-COPY ./services/worker/src /app/services/worker/src
-
-EXPOSE 8000
-
-CMD ["uvicorn", "agcode_worker.main:combined_app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+ENTRYPOINT ["/app/entrypoint.sh"]

@@ -3,7 +3,29 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-IMAGE_NAME="${LOCAL_IMAGE_NAME_CODER_PRO:-agcode/coder-pro:dev}"
+TARGET="${1:-pro}"
+IMAGE_ENV_NAME="LOCAL_IMAGE_NAME_CODER_PRO"
+DEFAULT_IMAGE_NAME="agcode/coder-pro:dev"
+DOCKERFILE_PATH="${ROOT_DIR}/deploy/docker/worker-pro.Dockerfile"
+
+case "${TARGET}" in
+  pro)
+    IMAGE_ENV_NAME="LOCAL_IMAGE_NAME_CODER_PRO"
+    DEFAULT_IMAGE_NAME="agcode/coder-pro:dev"
+    DOCKERFILE_PATH="${ROOT_DIR}/deploy/docker/worker-pro.Dockerfile"
+    ;;
+  noob)
+    IMAGE_ENV_NAME="LOCAL_IMAGE_NAME_CODER_NOOB"
+    DEFAULT_IMAGE_NAME="agcode/coder-noob:dev"
+    DOCKERFILE_PATH="${ROOT_DIR}/deploy/docker/worker-noob.Dockerfile"
+    ;;
+  *)
+    echo "usage: $0 [pro|noob]" >&2
+    exit 1
+    ;;
+esac
+
+IMAGE_NAME="${!IMAGE_ENV_NAME:-${DEFAULT_IMAGE_NAME}}"
 BUILD_ID="${WORKER_BUILD_ID:-$(date +%Y%m%d%H%M%S)}"
 ENV_FILE="${ROOT_DIR}/.local/worker_local.env"
 DOCKER_BUILDKIT_VALUE="${DOCKER_BUILDKIT:-0}"
@@ -34,7 +56,7 @@ fi
 
 echo "Building ${IMAGE_NAME}"
 DOCKER_BUILDKIT="${DOCKER_BUILDKIT_VALUE}" docker build \
-  -f "${ROOT_DIR}/deploy/docker/worker-pro.Dockerfile" \
+  -f "${DOCKERFILE_PATH}" \
   -t "${IMAGE_NAME}" \
   "${ROOT_DIR}"
 
@@ -44,10 +66,19 @@ docker save "${IMAGE_NAME}" | bash -lc "${MICROK8S_CTR_CMD} image import -"
 mkdir -p "$(dirname "${ENV_FILE}")"
 cat > "${ENV_FILE}" <<EOF
 export SESSION_RUNTIME_MODE=local_microk8s
-export LOCAL_IMAGE_NAME_CODER_PRO=${IMAGE_NAME}
 export WORKER_BUILD_ID=${BUILD_ID}
 export SESSION_REMOTE_CONFIG_PATH=${ROOT_DIR}/deploy/k8s/remote-config.yaml
 EOF
+
+if [[ "${TARGET}" == "pro" ]]; then
+  cat >> "${ENV_FILE}" <<EOF
+export LOCAL_IMAGE_NAME_CODER_PRO=${IMAGE_NAME}
+EOF
+else
+  cat >> "${ENV_FILE}" <<EOF
+export LOCAL_IMAGE_NAME_CODER_NOOB=${IMAGE_NAME}
+EOF
+fi
 
 echo "Wrote ${ENV_FILE}"
 echo "Build ID: ${BUILD_ID}"

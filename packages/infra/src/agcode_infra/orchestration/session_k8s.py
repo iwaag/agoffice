@@ -16,7 +16,9 @@ from agcode_infra.db import database as db
 SETTINGS = get_session_runtime_settings()
 RUNTIME_MODE = SETTINGS.runtime_mode
 IMAGE_NAME_CODER_PRO = SETTINGS.image_name_coder_pro
+IMAGE_NAME_CODER_NOOB = SETTINGS.image_name_coder_noob
 LOCAL_IMAGE_NAME_CODER_PRO = SETTINGS.local_image_name_coder_pro
+LOCAL_IMAGE_NAME_CODER_NOOB = SETTINGS.local_image_name_coder_noob
 WORKER_BUILD_ID = SETTINGS.worker_build_id
 NAMESPACE = SETTINGS.namespace
 STORAGE_CLASS_NAME = SETTINGS.storage_class_name
@@ -25,6 +27,8 @@ SCHEDULING_TIMEOUT_SECONDS = SETTINGS.scheduling_timeout_seconds
 WORKER_PORT = SETTINGS.worker_port
 WORKER_SOCKETIO_PATH = SETTINGS.worker_socketio_path
 REMOTE_CONFIG_PATH = SETTINGS.remote_config_path
+NOOB_RUNTIME_CLASS_NAME = SETTINGS.noob_runtime_class_name
+NOOB_MOUNT_PATH = SETTINGS.noob_mount_path
 HATCHET_CLIENT_TOKEN = os.getenv("HATCHET_CLIENT_TOKEN")
 HATCHET_CLIENT_HOST_PORT = os.getenv("HATCHET_CLIENT_HOST_PORT")
 HATCHET_CLIENT_SERVER_URL = os.getenv("HATCHET_CLIENT_SERVER_URL")
@@ -65,6 +69,12 @@ def _get_coder_pro_image() -> str:
     return _resolve_image(IMAGE_NAME_CODER_PRO, "IMAGE_NAME_CODER_PRO")
 
 
+def _get_coder_noob_image() -> str:
+    if _is_local_microk8s_mode():
+        return _resolve_image(LOCAL_IMAGE_NAME_CODER_NOOB, "LOCAL_IMAGE_NAME_CODER_NOOB")
+    return _resolve_image(IMAGE_NAME_CODER_NOOB, "IMAGE_NAME_CODER_NOOB")
+
+
 def _get_image_pull_policy() -> str | None:
     if _is_local_microk8s_mode():
         return "Never"
@@ -77,6 +87,8 @@ def _session_resource_names(session_id: str) -> dict[str, str]:
         "pro_pvc_name": f"pvc-session-{task_name}-pro",
         "pro_pod_name": f"worker-session-{task_name}-pro",
         "pro_service_name": f"svc-session-{task_name}-pro",
+        "noob_pvc_name": f"pvc-session-{task_name}-noob",
+        "noob_pod_name": f"worker-session-{task_name}-noob",
     }
 
 
@@ -157,8 +169,13 @@ def _build_pod(
     role: str,
     image: str,
     own_pvc_name: str,
+    own_mount_path: str = "/mnt/data",
     peer_pvc_name: str | None = None,
-    node_name: str | None = None
+    peer_mount_path: str = "/mnt/peer-data",
+    node_name: str | None = None,
+    runtime_class_name: str | None = None,
+    security_context: client.V1SecurityContext | None = None,
+    extra_env: list[client.V1EnvVar] | None = None,
 ) -> client.V1Pod:
     labels = {
         "task-id": session_id,
@@ -169,7 +186,7 @@ def _build_pod(
     volume_mounts = [
         client.V1VolumeMount(
             name="own-task-data",
-            mount_path="/mnt/data",
+            mount_path=own_mount_path,
             read_only=False,
         ),
     ]
@@ -186,7 +203,7 @@ def _build_pod(
         volume_mounts.append(
             client.V1VolumeMount(
                 name="peer-task-data",
-                mount_path="/mnt/peer-data",
+                mount_path=peer_mount_path,
                 read_only=True,
             )
         )
@@ -200,27 +217,31 @@ def _build_pod(
             )
         )
 
+    env = [
+        client.V1EnvVar(name="TASK_ID", value=session_id),
+        client.V1EnvVar(name="SESSION_ROLE", value=role),
+        client.V1EnvVar(name="USER_ID", value=user_id),
+        client.V1EnvVar(name="AUTH_TOKEN", value=token),
+        client.V1EnvVar(name="WORKER_BUILD_ID", value=WORKER_BUILD_ID),
+        client.V1EnvVar(name="CLIENT_ID", value=CLIENT_ID),
+        client.V1EnvVar(name="HATCHET_CLIENT_TOKEN", value=HATCHET_CLIENT_TOKEN),
+        client.V1EnvVar(name="HATCHET_CLIENT_HOST_PORT", value=HATCHET_CLIENT_HOST_PORT),
+        client.V1EnvVar(name="HATCHET_CLIENT_SERVER_URL", value=HATCHET_CLIENT_SERVER_URL),
+        client.V1EnvVar(name="HATCHET_CLIENT_TLS_STRATEGY", value=HATCHET_CLIENT_TLS_STRATEGY),
+        client.V1EnvVar(name="KEYCLOAK_URL", value=KEYCLOAK_URL),
+        client.V1EnvVar(name="KEYCLOAK_REALM", value=KEYCLOAK_REALM),
+        client.V1EnvVar(name="KEYCLOAK_CLIENT_SECRET", value=KEYCLOAK_CLIENT_SECRET),
+    ]
+    if extra_env:
+        env.extend(extra_env)
+
     container = client.V1Container(
         name=f"{role}-container",
         image=image,
         image_pull_policy=_get_image_pull_policy(),
         volume_mounts=volume_mounts,
-        env=[
-            client.V1EnvVar(name="TASK_ID", value=session_id),
-            client.V1EnvVar(name="SESSION_ROLE", value=role),
-            client.V1EnvVar(name="USER_ID", value=user_id),
-            client.V1EnvVar(name="AUTH_TOKEN", value=token),
-            client.V1EnvVar(name="AGENT_TIER", value="PRO"),
-            client.V1EnvVar(name="WORKER_BUILD_ID", value=WORKER_BUILD_ID),
-            client.V1EnvVar(name="CLIENT_ID", value=CLIENT_ID),
-            client.V1EnvVar(name="HATCHET_CLIENT_TOKEN", value=HATCHET_CLIENT_TOKEN),
-            client.V1EnvVar(name="HATCHET_CLIENT_HOST_PORT", value=HATCHET_CLIENT_HOST_PORT),
-            client.V1EnvVar(name="HATCHET_CLIENT_SERVER_URL", value=HATCHET_CLIENT_SERVER_URL),
-            client.V1EnvVar(name="HATCHET_CLIENT_TLS_STRATEGY", value=HATCHET_CLIENT_TLS_STRATEGY),
-            client.V1EnvVar(name="KEYCLOAK_URL", value=KEYCLOAK_URL),
-            client.V1EnvVar(name="KEYCLOAK_REALM", value=KEYCLOAK_REALM),
-            client.V1EnvVar(name="KEYCLOAK_CLIENT_SECRET", value=KEYCLOAK_CLIENT_SECRET),
-        ],
+        env=env,
+        security_context=security_context,
     )
 
     return client.V1Pod(
@@ -230,8 +251,35 @@ def _build_pod(
             node_name=node_name,
             containers=[container],
             volumes=volumes,
+            runtime_class_name=runtime_class_name,
         ),
     )
+
+
+def _build_noob_security_context() -> client.V1SecurityContext:
+    return client.V1SecurityContext(
+        allow_privilege_escalation=False,
+        read_only_root_filesystem=True,
+        run_as_non_root=True,
+        capabilities=client.V1Capabilities(drop=["ALL"]),
+    )
+
+
+def _session_agent_ids(session_info: object) -> set[str]:
+    config_data = getattr(session_info, "config", {}) or {}
+    agent_deployments = config_data.get("agent_deployments", [])
+    agent_ids: set[str] = set()
+    for deployment in agent_deployments:
+        if not isinstance(deployment, dict):
+            continue
+        agent_id = deployment.get("agent_id")
+        if isinstance(agent_id, str) and agent_id:
+            agent_ids.add(agent_id.strip().upper())
+    return agent_ids
+
+
+def _is_noob_session(session_info: object) -> bool:
+    return bool(_session_agent_ids(session_info) & {"NOOB", "AGCODE_WORKER_NOOB"})
 
 
 def _container_env_map(container: client.V1Container | None) -> dict[str, str | None]:
@@ -241,6 +289,8 @@ def _container_env_map(container: client.V1Container | None) -> dict[str, str | 
 
 
 def _pod_matches_spec(existing_pod: client.V1Pod, desired_pod: client.V1Pod) -> bool:
+    if existing_pod.spec.runtime_class_name != desired_pod.spec.runtime_class_name:
+        return False
     existing_containers = existing_pod.spec.containers or []
     desired_containers = desired_pod.spec.containers or []
     if len(existing_containers) != len(desired_containers):
@@ -377,6 +427,11 @@ def get_pro_service_name(session_id: str) -> str:
 
 
 def get_pro_realtime_socketio_base_url(session_id: str) -> str:
+    session_info = db.get_session(session_id)
+    if session_info is None:
+        raise ValueError(f"Session {session_id} not found")
+    if _is_noob_session(session_info):
+        raise RuntimeError(f"Session {session_id} does not expose a realtime Socket.IO endpoint")
     service_name = get_pro_service_name(session_id)
     return f"http://{service_name}.{NAMESPACE}.svc.cluster.local:{WORKER_PORT}"
 
@@ -457,6 +512,12 @@ def _post_json_via_pod_portforward(
 
 
 async def start_tunnel(session_id: str, tunnel_name: str, token: str) -> TunnelInfo:
+    session_info = db.get_session(session_id)
+    if session_info is None:
+        raise ValueError(f"Session {session_id} not found")
+    if _is_noob_session(session_info):
+        raise RuntimeError(f"Session {session_id} does not support VS Code tunnels")
+
     print(f"[start_tunnel] loading kubeconfig from {REMOTE_CONFIG_PATH}")
     config.load_kube_config(config_file=str(REMOTE_CONFIG_PATH))
     v1 = client.CoreV1Api()
@@ -497,6 +558,33 @@ async def run_session(session_id: str, project_id: str, user_id: str, token: str
     config.load_kube_config(config_file=str(REMOTE_CONFIG_PATH))
     v1 = client.CoreV1Api()
     names = _session_resource_names(session_id)
+    if _is_noob_session(session_info):
+        noob_pvc_name = names["noob_pvc_name"]
+        noob_pod_name = names["noob_pod_name"]
+
+        _ensure_pvc(v1, noob_pvc_name)
+
+        noob_pod_spec = _build_pod(
+            pod_name=noob_pod_name,
+            session_id=session_id,
+            user_id=user_id,
+            role="noob",
+            token=token,
+            image=_get_coder_noob_image(),
+            own_pvc_name=noob_pvc_name,
+            own_mount_path=NOOB_MOUNT_PATH,
+            runtime_class_name=NOOB_RUNTIME_CLASS_NAME or None,
+            security_context=_build_noob_security_context(),
+            extra_env=[
+                client.V1EnvVar(name="NOOB_SESSION_ROOT", value=NOOB_MOUNT_PATH),
+            ],
+        )
+        _create_or_reuse_pod(v1, noob_pod_spec)
+        _wait_for_node_assignment(v1, noob_pod_name)
+        _wait_for_pvc_bound(v1, noob_pvc_name)
+        _wait_for_pod_ready(v1, noob_pod_name)
+        return SessionInfo(id=session_id)
+
     pro_pvc_name = names["pro_pvc_name"]
     pro_pod_name = names["pro_pod_name"]
     pro_service_name = names["pro_service_name"]

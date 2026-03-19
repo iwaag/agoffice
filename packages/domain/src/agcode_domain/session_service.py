@@ -16,6 +16,7 @@ class SessionRecord(Protocol):
     id: str
     user_id: str
     project_id: str
+    config: dict
 
 
 class SessionRepository(Protocol):
