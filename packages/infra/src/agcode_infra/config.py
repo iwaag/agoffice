@@ -49,6 +49,7 @@ class SessionRuntimeSettings:
     worker_socketio_path: str
     remote_config_path: Path
     noob_runtime_class_name: str | None
+    pro_mount_path: str
     noob_mount_path: str
 
 
@@ -88,5 +89,6 @@ def get_session_runtime_settings() -> SessionRuntimeSettings:
         worker_socketio_path=os.getenv("SESSION_WORKER_SOCKETIO_PATH", "/chat/realtime"),
         remote_config_path=Path(os.getenv("SESSION_REMOTE_CONFIG_PATH", str(default_remote_config))),
         noob_runtime_class_name=os.getenv("SESSION_NOOB_RUNTIME_CLASS", "runsc"),
+        pro_mount_path=os.getenv("SESSION_PRO_MOUNT_PATH", "/mnt/data"),
         noob_mount_path=os.getenv("SESSION_NOOB_MOUNT_PATH", "/mnt/session"),
     )

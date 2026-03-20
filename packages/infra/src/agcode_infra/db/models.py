@@ -74,3 +74,19 @@ class NoobThread(SQLModel, table=True):
     status: str = "idle"
     created_at: datetime
     updated_at: Optional[datetime] = None
+
+
+class Mission(SQLModel, table=True):
+    id: str = Field(
+        default_factory=generate_nanoid,
+        sa_column=Column(String(12), primary_key=True, index=True, nullable=False),
+    )
+    mission_name: str
+    repo_url: str
+    instruction: str
+    session_id: Optional[str] = Field(default=None, index=True)
+    user_id: str = Field(index=True)
+    project_id: str = Field(index=True)
+    created_at: datetime
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None

@@ -3,6 +3,7 @@ from sqlalchemy import Engine
 from sqlmodel import SQLModel, Session, create_engine, select
 
 from agcode_domain.schema import (
+    MissionCreateRequest,
     NoobSessionCreateRequest,
     NoobSessionUpdate,
     NoobThreadCreateRequest,
@@ -11,7 +12,7 @@ from agcode_domain.schema import (
     SessionUpdate,
 )
 from agcode_infra.config import get_database_settings
-from agcode_infra.db.models import Agent, Instruction, NoobSession, NoobThread, Session as TaskSession
+from agcode_infra.db.models import Agent, Instruction, Mission, NoobSession, NoobThread, Session as TaskSession
 
 _engine: Engine | None = None
 
@@ -153,6 +154,61 @@ def update_noob_thread_status(thread_id: str, status: str) -> NoobThread:
         session.commit()
         session.refresh(thread)
         return thread
+
+
+def new_mission(user_id: str, request: MissionCreateRequest) -> Mission:
+    mission = Mission(
+        mission_name=request.mission_name,
+        repo_url=request.repo_url,
+        instruction=request.instruction,
+        user_id=user_id,
+        project_id=request.project_id,
+        created_at=datetime.now(),
+    )
+    with Session(get_engine()) as session:
+        session.add(mission)
+        session.flush()
+        session.commit()
+        session.refresh(mission)
+        return mission
+
+
+def get_mission(mission_id: str) -> Mission | None:
+    with Session(get_engine()) as session:
+        return session.get(Mission, mission_id)
+
+
+def list_missions(user_id: str, project_id: str) -> list[Mission]:
+    with Session(get_engine()) as session:
+        stmt = (
+            select(Mission)
+            .where(Mission.user_id == user_id, Mission.project_id == project_id)
+            .order_by(Mission.created_at.desc())
+        )
+        return list(session.exec(stmt).all())
+
+
+def update_mission(
+    mission_id: str,
+    *,
+    session_id: str | None = None,
+    started_at: datetime | None = None,
+    completed_at: datetime | None = None,
+) -> Mission:
+    with Session(get_engine()) as session:
+        mission = session.get(Mission, mission_id)
+        if not mission:
+            raise ValueError(f"Mission {mission_id} not found")
+        if session_id is not None:
+            mission.session_id = session_id
+        if started_at is not None:
+            mission.started_at = started_at
+        if completed_at is not None:
+            mission.completed_at = completed_at
+        session.add(mission)
+        session.commit()
+        session.refresh(mission)
+        return mission
 
 
 def list_sessions(user_id: str, project_id: str) -> SessionListInfo:

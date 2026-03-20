@@ -16,3 +16,15 @@ class NoobSessionConflictError(SessionError):
 
 class NoobThreadNotFoundError(SessionError):
     pass
+
+
+class MissionNotFoundError(SessionError):
+    pass
+
+
+class MissionAccessDeniedError(SessionError):
+    pass
+
+
+class MissionConflictError(SessionError):
+    pass

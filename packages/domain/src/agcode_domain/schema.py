@@ -34,6 +34,35 @@ class TunnelInfo(BaseModel):
     tunnel_name: str
 
 
+class MissionCreateRequest(BaseModel):
+    mission_name: str = Field(min_length=1)
+    repo_url: str = Field(min_length=1)
+    instruction: str = Field(min_length=1)
+    project_id: str = Field(min_length=1)
+
+
+class MissionStartRequest(BaseModel):
+    session_id: str = Field(min_length=1)
+    mission_id: str = Field(min_length=1)
+
+
+class MissionInfo(BaseModel):
+    id: str
+    mission_name: str
+    repo_url: str
+    instruction: str
+    session_id: Optional[str] = None
+    user_id: str
+    project_id: str
+    created_at: datetime
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+
+
+class MissionListInfo(BaseModel):
+    missions: Sequence[MissionInfo]
+
+
 class NoobWorkspacePrepSpec(BaseModel):
     repo_url: str = Field(min_length=1)
     ref: Optional[str] = None

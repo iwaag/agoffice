@@ -1,6 +1,10 @@
 import asyncio
 import http.client
 import json
+import posixpath
+import re
+import shlex
+from urllib.parse import urlsplit
 
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
@@ -41,6 +45,7 @@ from .session_k8s_config import (
     NOOB_RUNTIME_CLASS_NAME,
     NOOB_STATUS_PATH,
     PVC_SIZE,
+    PRO_MOUNT_PATH,
     REMOTE_CONFIG_PATH,
     RUNTIME_MODE,
     SCHEDULING_TIMEOUT_SECONDS,
@@ -56,9 +61,11 @@ from .session_k8s_config import (
     session_resource_names,
 )
 from .session_k8s_noob_io import (
+    exec_in_pod,
     read_optional_json_file,
     read_optional_text_file,
     submit_noob_request_file,
+    write_text_file_atomic,
 )
 from .session_k8s_resources import (
     build_noob_prep_job,
@@ -90,6 +97,53 @@ def _get_noob_session_or_raise(session_id: str) -> object:
     if session_info is None:
         raise ValueError(f"NOOB session {session_id} not found")
     return session_info
+
+
+def _mission_workspace_name(repo_url: str, mission_name: str) -> str:
+    path = urlsplit(repo_url).path.rstrip("/")
+    candidate = path.rsplit("/", 1)[-1] if path else ""
+    if candidate.endswith(".git"):
+        candidate = candidate[:-4]
+    candidate = re.sub(r"[^A-Za-z0-9._-]+", "-", candidate).strip(".-")
+    if candidate:
+        return candidate
+    fallback = re.sub(r"[^A-Za-z0-9._-]+", "-", mission_name).strip(".-")
+    return fallback or "workspace"
+
+
+def _build_agent_md(instruction: str) -> str:
+    base = (
+        "コードはミニマム、シンプルを心がけ、形式ばったメリットのないロジックや"
+        "自明すぎるコメントは避けること。"
+    )
+    body = instruction.strip()
+    if not body:
+        return f"{base}\n"
+    return f"{base}\n\n{body}\n"
+
+
+def _run_checked_shell_in_pod(v1: client.CoreV1Api, *, pod_name: str, script: str) -> str:
+    marker = "__AGCODE_EXIT__:"
+    output = exec_in_pod(
+        v1,
+        pod_name=pod_name,
+        command=[
+            "sh",
+            "-lc",
+            f"{{ {script}; }}; code=$?; printf '{marker}%s\\n' \"$code\"",
+        ],
+    )
+    lines = output.splitlines()
+    exit_code = None
+    filtered_lines: list[str] = []
+    for line in lines:
+        if line.startswith(marker):
+            exit_code = int(line[len(marker):])
+            continue
+        filtered_lines.append(line)
+    if exit_code not in (0, None):
+        raise RuntimeError("\n".join(filtered_lines).strip() or f"pod command failed with exit code {exit_code}")
+    return "\n".join(filtered_lines).strip()
 
 
 def get_pro_realtime_socketio_base_url(session_id: str) -> str:
@@ -359,6 +413,7 @@ async def run_session(session_id: str, project_id: str, user_id: str, token: str
         token=token,
         image=get_coder_pro_image(),
         own_pvc_name=pro_pvc_name,
+        own_mount_path=PRO_MOUNT_PATH,
     )
     create_or_reuse_pod(v1, pro_pod_spec)
     wait_for_node_assignment(v1, pro_pod_name)
@@ -376,6 +431,54 @@ async def run_session(session_id: str, project_id: str, user_id: str, token: str
     wait_for_service_endpoints(v1, pro_service_name)
 
     return SessionInfo(id=session_id)
+
+
+async def start_mission(*, session_id: str, mission: object) -> None:
+    _get_session_or_raise(session_id)
+
+    config.load_kube_config(config_file=str(REMOTE_CONFIG_PATH))
+    v1 = client.CoreV1Api()
+    pod_name = session_resource_names(session_id)["pro_pod_name"]
+    wait_for_pod_ready(v1, pod_name)
+
+    mission_id = getattr(mission, "id")
+    mission_name = getattr(mission, "mission_name")
+    repo_url = getattr(mission, "repo_url")
+    instruction = getattr(mission, "instruction")
+
+    mission_root = posixpath.join(PRO_MOUNT_PATH, "missions")
+    mission_dir = posixpath.join(mission_root, mission_id)
+    workspace_dir = posixpath.join(mission_dir, _mission_workspace_name(repo_url, mission_name))
+    quoted_mission_root = shlex.quote(mission_root)
+    quoted_mission_dir = shlex.quote(mission_dir)
+    quoted_workspace_dir = shlex.quote(workspace_dir)
+    quoted_repo_url = shlex.quote(repo_url)
+
+    _run_checked_shell_in_pod(
+        v1,
+        pod_name=pod_name,
+        script=(
+            f"set -eu; "
+            f"mkdir -p {quoted_mission_root}; "
+            f"if [ -e {quoted_mission_dir} ]; then "
+            f"echo 'mission directory already exists' >&2; exit 1; "
+            f"fi; "
+            f"mkdir -p {quoted_mission_dir}; "
+            f"if git clone {quoted_repo_url} {quoted_workspace_dir}; then "
+            f"exit 0; "
+            f"fi; "
+            f"rm -rf {quoted_workspace_dir}; "
+            f"mkdir -p {quoted_workspace_dir}; "
+            f"git -C {quoted_workspace_dir} init; "
+            f"git -C {quoted_workspace_dir} remote add origin {quoted_repo_url}"
+        ),
+    )
+    write_text_file_atomic(
+        v1,
+        pod_name=pod_name,
+        path=posixpath.join(mission_dir, "AGENT.md"),
+        content=_build_agent_md(instruction),
+    )
 
 
 async def run_noob_session(session_id: str, *, user_id: str, token: str) -> SessionInfo:

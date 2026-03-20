@@ -20,6 +20,7 @@ WORKER_PORT = SETTINGS.worker_port
 WORKER_SOCKETIO_PATH = SETTINGS.worker_socketio_path
 REMOTE_CONFIG_PATH = SETTINGS.remote_config_path
 NOOB_RUNTIME_CLASS_NAME = SETTINGS.noob_runtime_class_name
+PRO_MOUNT_PATH = SETTINGS.pro_mount_path
 NOOB_MOUNT_PATH = SETTINGS.noob_mount_path
 
 HATCHET_CLIENT_TOKEN = os.getenv("HATCHET_CLIENT_TOKEN")
