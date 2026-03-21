@@ -177,6 +177,7 @@ def build_pod(
         client.V1EnvVar(name="KEYCLOAK_URL", value=KEYCLOAK_URL),
         client.V1EnvVar(name="KEYCLOAK_REALM", value=KEYCLOAK_REALM),
         client.V1EnvVar(name="KEYCLOAK_CLIENT_SECRET", value=KEYCLOAK_CLIENT_SECRET),
+        
     ]
     if extra_env:
         env.extend(extra_env)

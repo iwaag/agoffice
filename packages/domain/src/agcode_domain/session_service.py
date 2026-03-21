@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-import base64
 from collections.abc import AsyncGenerator, Sequence
 from datetime import datetime
-import hashlib
-import re
 from typing import Protocol
 
 from agcode_domain.errors import SessionAccessDeniedError, SessionNotFoundError
@@ -76,18 +73,6 @@ async def open_session(
     return session_model_to_info(updated)
 
 
-def build_tunnel_name(*, user_id: str) -> str:
-    slug = re.sub(r"[^a-zA-Z0-9]+", "-", user_id).strip("-").lower()
-    prefix = slug[:4] if slug else "user"
-    digest = hashlib.blake2s(
-        user_id.encode("utf-8"),
-        digest_size=8,
-        person=b"agcode",
-    ).digest()
-    suffix = base64.b32encode(digest).decode("ascii").rstrip("=").lower()[:13]
-    return f"{prefix}-{suffix}"[:20]
-
-
 async def start_session_tunnel(
     repository: SessionRepository,
     runtime: SessionRuntime,
@@ -97,10 +82,9 @@ async def start_session_tunnel(
     token: str,
 ) -> TunnelInfo:
     get_owned_session(repository, session_id=session_id, user_id=user_id)
-    tunnel_name = build_tunnel_name(user_id=user_id)
     return await runtime.start_tunnel(
         session_id=session_id,
-        tunnel_name=tunnel_name,
+        tunnel_name=session_id,
         token=token,
     )
 
