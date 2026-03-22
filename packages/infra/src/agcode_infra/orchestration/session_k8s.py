@@ -115,10 +115,14 @@ def _mission_workspace_name(repo_url: str, title: str) -> str:
 def _build_agent_md(mission : MissionRecord) -> str:
     base = (
         f"mission_id = {mission.id}\n"
+        "\n"
         "Execute the command below at the beginning in the user's shell and understand the mission.\n"
         f"agdev code mission {mission.id}\n"
+        "\n"
         "Follow the mission information unless the user explicitly told you otherwise.\n"
         "If you are given contradicting information and instruction, ask user for clarification before starting to work.\n"
+        "\n"
+        "First, create branch"
     )
     return base
 
@@ -457,6 +461,7 @@ async def start_mission(*, session_id: str, mission: MissionRecord) -> MissionRe
     quoted_mission_dir = shlex.quote(mission_dir)
     quoted_workspace_dir = shlex.quote(workspace_dir)
     quoted_repo_url = shlex.quote(mission.repo_url)
+    quoted_mission_id = shlex.quote(mission.id)
 
     _run_checked_shell_in_pod(
         v1,
@@ -468,13 +473,17 @@ async def start_mission(*, session_id: str, mission: MissionRecord) -> MissionRe
             f"echo 'mission directory already exists' >&2; exit 1; "
             f"fi; "
             f"mkdir -p {quoted_mission_dir}; "
-            f"if git clone {quoted_repo_url} {quoted_workspace_dir}; then "
-            f"exit 0; "
-            f"fi; "
+            f"if ! git clone {quoted_repo_url} {quoted_workspace_dir}; then "
             f"rm -rf {quoted_workspace_dir}; "
             f"mkdir -p {quoted_workspace_dir}; "
             f"git -C {quoted_workspace_dir} init; "
-            f"git -C {quoted_workspace_dir} remote add origin {quoted_repo_url}"
+            f"git -C {quoted_workspace_dir} remote add origin {quoted_repo_url}; "
+            f"printf '#comming soon\\n' > {quoted_workspace_dir}/.gitignore; "
+            f"printf 'comming soon\\n' > {quoted_workspace_dir}/README.md; "
+            f"git -C {quoted_workspace_dir} add .gitignore README.md; "
+            f"git -C {quoted_workspace_dir} commit -m 'initial commit'; "
+            f"fi; "
+            f"git -C {quoted_workspace_dir} checkout -b {quoted_mission_id}"
         ),
     )
     write_text_file_atomic(

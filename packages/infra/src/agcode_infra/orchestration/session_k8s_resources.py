@@ -180,7 +180,7 @@ def build_pod(
         client.V1EnvVar(name="KEYCLOAK_URL", value=KEYCLOAK_URL),
         client.V1EnvVar(name="KEYCLOAK_REALM", value=KEYCLOAK_REALM),
         client.V1EnvVar(name="KEYCLOAK_CLIENT_SECRET", value=KEYCLOAK_CLIENT_SECRET),
-        client.V1EnvVar(name="KEYCLOAK_CLIENT_ID", value=CLIENT_ID),
+        client.V1EnvVar(name="KEYCLOAK_CLIENT_ID", value="agdev"),
         client.V1EnvVar(name="AGVIDEO_API_URL", value=AGVIDEO_API_URL),
         client.V1EnvVar(name="AGCORE_API_URL", value=AGCORE_API_URL),
         client.V1EnvVar(name="AGCODE_API_URL", value=AGCODE_API_URL),

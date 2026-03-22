@@ -44,6 +44,8 @@ RUN uv sync --frozen --no-dev
 
 COPY ./services/worker/src /app/services/worker/src
 
+RUN curl -fsSL https://raw.githubusercontent.com/iwaag/agdev-cli/main/install.sh | sh
+
 EXPOSE 8000
 
 CMD ["uvicorn", "agcode_worker.main:combined_app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

@@ -47,6 +47,7 @@ def _allocate_session_index(session: Session, *, user_id: str, project_id: str) 
     raise ValueError(f"No available session index for user_id={user_id} project_id={project_id}")
 
 
+
 def new_session(user_id: str, session_config: SessionConfig) -> TaskSession:
     with Session(get_engine()) as session:
         session_index = _allocate_session_index(session, user_id=user_id, project_id=session_config.project_id)
