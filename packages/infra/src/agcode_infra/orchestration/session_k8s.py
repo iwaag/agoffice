@@ -112,15 +112,15 @@ def _mission_workspace_name(repo_url: str, title: str) -> str:
     return fallback or "workspace"
 
 
-def _build_agent_md(instruction: str) -> str:
+def _build_agent_md(mission : MissionRecord) -> str:
     base = (
-        "コードはミニマム、シンプルを心がけ、形式ばったメリットのないロジックや"
-        "自明すぎるコメントは避けること。"
+        f"mission_id = {mission.id}\n"
+        "Execute the command below at the beginning in the user's shell and understand the mission.\n"
+        f"agdev code mission {mission.id}\n"
+        "Follow the mission information unless the user explicitly told you otherwise.\n"
+        "If you are given contradicting information and instruction, ask user for clarification before starting to work.\n"
     )
-    body = instruction.strip()
-    if not body:
-        return f"{base}\n"
-    return f"{base}\n\n{body}\n"
+    return base
 
 
 def _run_checked_shell_in_pod(v1: client.CoreV1Api, *, pod_name: str, script: str) -> str:
@@ -438,7 +438,7 @@ def auto_choose_session(mission: MissionRecord) -> SessionInfo:
     session_list = db.list_sessions(user_id=mission.user_id, project_id=mission.project_id)
     return SessionInfo(id=session_list[0].id)
 
-async def start_mission(*, session_id: str, mission: MissionRecord) -> None:
+async def start_mission(*, session_id: str, mission: MissionRecord) -> MissionRecord:
     session: SessionInfo | None = None
     if not session_id:
         session = auto_choose_session(mission)
@@ -481,8 +481,10 @@ async def start_mission(*, session_id: str, mission: MissionRecord) -> None:
         v1,
         pod_name=pod_name,
         path=posixpath.join(mission_dir, "AGENT.md"),
-        content=_build_agent_md(mission.instruction),
+        content=_build_agent_md(mission=mission),
     )
+    mission.session_id = session.id
+    return mission
 
 
 async def run_noob_session(session_id: str, *, user_id: str, token: str) -> SessionInfo:

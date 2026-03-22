@@ -22,6 +22,9 @@ from .session_k8s_config import (
     STORAGE_CLASS_NAME,
     WORKER_BUILD_ID,
     WORKER_PORT,
+    AGCODE_API_URL,
+    AGCORE_API_URL,
+    AGVIDEO_API_URL,
     get_coder_noob_prep_image,
     get_image_pull_policy,
     get_noob_prep_job_name,
@@ -177,6 +180,10 @@ def build_pod(
         client.V1EnvVar(name="KEYCLOAK_URL", value=KEYCLOAK_URL),
         client.V1EnvVar(name="KEYCLOAK_REALM", value=KEYCLOAK_REALM),
         client.V1EnvVar(name="KEYCLOAK_CLIENT_SECRET", value=KEYCLOAK_CLIENT_SECRET),
+        client.V1EnvVar(name="KEYCLOAK_CLIENT_ID", value=CLIENT_ID),
+        client.V1EnvVar(name="AGVIDEO_API_URL", value=AGVIDEO_API_URL),
+        client.V1EnvVar(name="AGCORE_API_URL", value=AGCORE_API_URL),
+        client.V1EnvVar(name="AGCODE_API_URL", value=AGCODE_API_URL),
         
     ]
     if extra_env:

@@ -12,8 +12,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     gnupg \
     git \
+    ripgrep \
+    fd-find \
+    jq \
+    less \
+    procps \
+    psmisc \
+    file \
+    unzip \
+    xz-utils \
+    make \
+    build-essential \
+    git-lfs \
+    bat \
+    man-db \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs \
+    && ln -sf /usr/bin/fdfind /usr/local/bin/fd \
+    && ln -sf /usr/bin/batcat /usr/local/bin/bat \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl -Lk 'https://update.code.visualstudio.com/latest/cli-linux-x64/stable' \

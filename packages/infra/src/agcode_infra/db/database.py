@@ -11,7 +11,15 @@ from agcode_domain.schema import (
     SessionUpdate,
 )
 from agcode_infra.config import get_database_settings
-from agcode_infra.db.models import Agent, Instruction, Mission, NoobSession, NoobThread, Session as TaskSession
+from agcode_infra.db.models import (
+    Agent,
+    Instruction,
+    Mission,
+    NoobSession,
+    NoobThread,
+    Session as TaskSession,
+    generate_session_id,
+)
 
 _engine: Engine | None = None
 
@@ -26,11 +34,36 @@ def get_engine() -> Engine:
 def init_database() -> None:
     SQLModel.metadata.create_all(get_engine())
 
+
+def _allocate_session_index(session: Session, *, user_id: str, project_id: str) -> int:
+    stmt = select(TaskSession.session_index).where(
+        TaskSession.user_id == user_id,
+        TaskSession.project_id == project_id,
+    )
+    used_indexes = set(session.exec(stmt).all())
+    for session_index in range(101):
+        if session_index not in used_indexes:
+            return session_index
+    raise ValueError(f"No available session index for user_id={user_id} project_id={project_id}")
+
+
 def new_session(user_id: str, session_config: SessionConfig) -> TaskSession:
-    new_session = TaskSession(title = session_config.title, user_id = user_id, project_id = session_config.project_id,
-                              instruction = session_config.instruction, config = session_config.model_dump(),
-                              created_at=datetime.now())
     with Session(get_engine()) as session:
+        session_index = _allocate_session_index(session, user_id=user_id, project_id=session_config.project_id)
+        new_session = TaskSession(
+            id=generate_session_id(
+                user_id=user_id,
+                project_id=session_config.project_id,
+                session_index=session_index,
+            ),
+            title=session_config.title,
+            user_id=user_id,
+            project_id=session_config.project_id,
+            session_index=session_index,
+            instruction=session_config.instruction,
+            config=session_config.model_dump(),
+            created_at=datetime.now(),
+        )
         session.add(new_session)
         session.flush()
         session.commit()

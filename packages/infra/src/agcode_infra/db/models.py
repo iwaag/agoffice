@@ -1,14 +1,20 @@
 from datetime import datetime
+import hashlib
 from typing import Any, Optional
 import nanoid
 
 from sqlalchemy.ext.mutable import MutableDict
+from sqlalchemy import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
-from uuid import UUID as PyUUID
 from sqlmodel import Field, Column, SQLModel, String
 
 def generate_nanoid() -> str:
     return nanoid.generate(size=12)
+
+
+def generate_session_id(*, user_id: str, project_id: str, session_index: int) -> str:
+    raw = f"{user_id}:{project_id}:{session_index}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:20]
 
 class Agent(SQLModel, table=True):
     id: str = Field(
@@ -27,9 +33,12 @@ class Instruction(SQLModel, table=True):
     content: str
 
 class Session(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint("user_id", "project_id", "session_index", name="uq_session_user_project_index"),
+    )
+
     id: str = Field(
-        default_factory=generate_nanoid,
-        sa_column=Column(String(12), primary_key=True, index=True, nullable=False),
+        sa_column=Column(String(20), primary_key=True, index=True, nullable=False),
     )
     title: str
     instruction: str
@@ -39,6 +48,7 @@ class Session(SQLModel, table=True):
     updated_at: Optional[datetime]
     user_id: str = Field(index=True)
     project_id: str
+    session_index: int = Field(index=True)
     config: dict[str, Any] = Field(
         default_factory=dict,
         sa_column=Column(MutableDict.as_mutable(JSONB), nullable=False),

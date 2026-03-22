@@ -31,6 +31,11 @@ CLIENT_ID = os.getenv("CLIENT_ID", "agcode")
 KEYCLOAK_URL = os.getenv("KEYCLOAK_URL", "http://localhost:8080")
 KEYCLOAK_REALM = os.getenv("KEYCLOAK_REALM", "agcode")
 KEYCLOAK_CLIENT_SECRET = os.getenv("KEYCLOAK_CLIENT_SECRET")
+AGVIDEO_API_URL = os.getenv("AGVIDEO_API_URL", "http://set_agvideo_url:8080")
+AGCORE_API_URL = os.getenv("AGCORE_API_URL", "http://set_agcore_url:8080")
+AGCODE_API_URL = os.getenv("AGCODE_API_URL", "http://set_agcode_url:8080")
+
+
 
 NOOB_REQUEST_PATH = f"{NOOB_MOUNT_PATH}/control/request.json"
 NOOB_STATUS_PATH = f"{NOOB_MOUNT_PATH}/state/status.json"

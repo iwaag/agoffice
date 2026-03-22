@@ -44,7 +44,7 @@ class MissionRepository(Protocol):
 
 
 class MissionRuntime(Protocol):
-    async def start_mission(self, *, session_id: str, mission: MissionRecord) -> None: ...
+    async def start_mission(self, *, session_id: str, mission: MissionRecord) -> MissionRecord: ...
 
 
 def _to_mission_info(model: MissionRecord) -> MissionInfo:
@@ -124,10 +124,10 @@ async def start_mission(
             raise MissionConflictError("Mission project_id does not match session project_id")
     if mission.started_at is not None or mission.session_id is not None:
         raise MissionConflictError(f"Mission {mission_id} is already started")
-    await runtime.start_mission(session_id=session_id, mission=mission)
+    mission = await runtime.start_mission(session_id=session_id, mission=mission)
     updated = repository.update_mission(
         mission.id,
-        session_id=session_id,
+        session_id=mission.session_id,
         started_at=datetime.now(),
     )
     return _to_mission_info(updated)

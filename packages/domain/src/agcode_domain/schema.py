@@ -58,6 +58,10 @@ class MissionInfo(BaseModel):
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
 
+class MissionUpdate(BaseModel):
+    title: Optional[str] = None
+    repo_url: Optional[str] = None
+    instruction: Optional[str] = None
 
 class MissionListInfo(BaseModel):
     missions: Sequence[MissionInfo]
