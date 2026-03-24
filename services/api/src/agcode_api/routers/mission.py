@@ -10,7 +10,7 @@ from agcode_domain.errors import (
     SessionNotFoundError,
 )
 from agcode_domain.schema import MissionCreateRequest, MissionInfo, MissionListInfo, MissionStartRequest
-from agcode_infra.db import database as db
+from agcode_infra.db import mission as mission_db
 from agcode_infra.orchestration import session_k8s as task_session
 
 router = APIRouter()
@@ -29,7 +29,7 @@ def _raise_http_mission_error(exc: Exception) -> None:
 @router.post("/new", summary="Create mission")
 async def create_mission(request: MissionCreateRequest, auth: AuthInfo = Depends(get_auth_info)) -> MissionInfo:
     return mission_service.create_mission(
-        db,
+        mission_db,
         user_id=auth.user_id,
         request=request,
     )
@@ -39,7 +39,7 @@ async def create_mission(request: MissionCreateRequest, auth: AuthInfo = Depends
 async def start_mission(request: MissionStartRequest, auth: AuthInfo = Depends(get_auth_info)) -> MissionInfo:
     try:
         return await mission_service.start_mission(
-            db,
+            mission_db,
             task_session,
             mission_id=request.mission_id,
             session_id=request.session_id,
@@ -55,7 +55,7 @@ async def start_mission(request: MissionStartRequest, auth: AuthInfo = Depends(g
 async def get_mission(mission_id: str, auth: AuthInfo = Depends(get_auth_info)) -> MissionInfo:
     try:
         return mission_service.get_mission(
-            db,
+            mission_db,
             mission_id=mission_id,
             user_id=auth.user_id,
         )
@@ -67,7 +67,7 @@ async def get_mission(mission_id: str, auth: AuthInfo = Depends(get_auth_info)) 
 async def complete_mission(mission_id: str, auth: AuthInfo = Depends(get_auth_info)) -> MissionInfo:
     try:
         return mission_service.complete_mission(
-            db,
+            mission_db,
             mission_id=mission_id,
             user_id=auth.user_id,
         )
@@ -78,7 +78,7 @@ async def complete_mission(mission_id: str, auth: AuthInfo = Depends(get_auth_in
 @router.get("/list", summary="List missions")
 async def list_missions(project_id: str, auth: AuthInfo = Depends(get_auth_info)) -> MissionListInfo:
     return mission_service.list_missions(
-        db,
+        mission_db,
         user_id=auth.user_id,
         project_id=project_id,
     )
