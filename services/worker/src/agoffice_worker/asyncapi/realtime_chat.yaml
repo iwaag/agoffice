@@ -1,0 +1,265 @@
+asyncapi: 2.6.0
+info:
+  title: agoffice-worker Realtime Chat API
+  version: 1.0.0
+  description: |
+    AsyncAPI-style definition for the realtime chat Socket.IO endpoint exposed by the
+    PRO worker.
+defaultContentType: application/json
+servers:
+  default:
+    url: '{host}'
+    protocol: socketio
+    description: Base Socket.IO server.
+    variables:
+      host:
+        default: localhost:8000
+        description: Host and port for the agoffice-worker service.
+channels:
+  /chat/realtime:
+    description: Socket.IO path. Set auth.provider or ?provider=codex|claude to choose a provider; defaults to the server setting and then CODEX.
+    subscribe:
+      summary: Server events delivered after the client connects.
+      message:
+        oneOf:
+          - $ref: '#/components/messages/Ready'
+          - $ref: '#/components/messages/Pong'
+          - $ref: '#/components/messages/TurnStarted'
+          - $ref: '#/components/messages/Delta'
+          - $ref: '#/components/messages/AssistantMessage'
+          - $ref: '#/components/messages/Done'
+          - $ref: '#/components/messages/Error'
+          - $ref: '#/components/messages/AgentStdout'
+          - $ref: '#/components/messages/AgentStderr'
+          - $ref: '#/components/messages/AgentEvent'
+    publish:
+      summary: Client events accepted by the server.
+      message:
+        oneOf:
+          - $ref: '#/components/messages/UserMessage'
+          - $ref: '#/components/messages/Ping'
+          - $ref: '#/components/messages/Close'
+    bindings:
+      ws: {}
+components:
+  messages:
+    UserMessage:
+      name: userMessage
+      title: User message
+      payload:
+        type: object
+        required:
+          - type
+          - content
+        properties:
+          type:
+            type: string
+            const: user_message
+          content:
+            type: string
+            minLength: 1
+    Ping:
+      name: ping
+      title: Ping
+      payload:
+        type: object
+        required:
+          - type
+        properties:
+          type:
+            type: string
+            const: ping
+    Close:
+      name: close
+      title: Close
+      payload:
+        type: object
+        required:
+          - type
+        properties:
+          type:
+            type: string
+            const: close
+    Ready:
+      name: ready
+      title: Ready
+      payload:
+        type: object
+        required:
+          - type
+          - provider
+          - accepted_message_types
+        properties:
+          type:
+            type: string
+            const: ready
+          provider:
+            $ref: '#/components/schemas/Provider'
+          accepted_message_types:
+            type: array
+            items:
+              type: string
+            example:
+              - user_message
+              - ping
+              - close
+    Pong:
+      name: pong
+      title: Pong
+      payload:
+        type: object
+        required:
+          - type
+          - provider
+        properties:
+          type:
+            type: string
+            const: pong
+          provider:
+            $ref: '#/components/schemas/Provider'
+    TurnStarted:
+      name: turnStarted
+      title: Turn started
+      payload:
+        type: object
+        required:
+          - type
+          - provider
+          - mode
+        properties:
+          type:
+            type: string
+            const: turn_started
+          provider:
+            $ref: '#/components/schemas/Provider'
+          mode:
+            type: string
+            enum:
+              - stream
+              - pseudo-stream
+    Delta:
+      name: delta
+      title: Delta
+      payload:
+        type: object
+        required:
+          - type
+          - provider
+          - content
+        properties:
+          type:
+            type: string
+            const: delta
+          provider:
+            type: string
+            const: claude
+          content:
+            type: string
+    AssistantMessage:
+      name: assistantMessage
+      title: Assistant message
+      payload:
+        type: object
+        required:
+          - type
+          - provider
+          - content
+        properties:
+          type:
+            type: string
+            const: assistant_message
+          provider:
+            $ref: '#/components/schemas/Provider'
+          content:
+            type: string
+    Done:
+      name: done
+      title: Done
+      payload:
+        type: object
+        required:
+          - type
+          - provider
+        properties:
+          type:
+            type: string
+            const: done
+          provider:
+            $ref: '#/components/schemas/Provider'
+    Error:
+      name: error
+      title: Error
+      payload:
+        type: object
+        required:
+          - type
+          - provider
+          - message
+        properties:
+          type:
+            type: string
+            const: error
+          provider:
+            $ref: '#/components/schemas/Provider'
+          message:
+            type: string
+    AgentStdout:
+      name: agentStdout
+      title: Agent stdout
+      payload:
+        type: object
+        required:
+          - type
+          - provider
+          - data
+        properties:
+          type:
+            type: string
+            const: agent_stdout
+          provider:
+            type: string
+            const: codex
+          data:
+            type: string
+    AgentStderr:
+      name: agentStderr
+      title: Agent stderr
+      payload:
+        type: object
+        required:
+          - type
+          - provider
+          - data
+        properties:
+          type:
+            type: string
+            const: agent_stderr
+          provider:
+            $ref: '#/components/schemas/Provider'
+          data:
+            type: string
+    AgentEvent:
+      name: agentEvent
+      title: Agent event
+      payload:
+        type: object
+        required:
+          - type
+          - provider
+          - event
+        properties:
+          type:
+            type: string
+            const: agent_event
+          provider:
+            type: string
+            const: codex
+          event:
+            type: object
+            additionalProperties: true
+  schemas:
+    Provider:
+      type: string
+      enum:
+        - codex
+        - claude

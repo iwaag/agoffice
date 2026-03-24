@@ -1,5 +1,5 @@
 services:
-  agcode:
+  agoffice:
     build:
       context: ../..
       dockerfile: deploy/docker/Dockerfile
@@ -41,4 +41,4 @@ services:
       HATCHET_CLIENT_TLS_STRATEGY: "none"
       AGVIDEO_API_URL: ${AGVIDEO_API_URL}
       AGCORE_API_URL: ${AGCORE_API_URL}
-      AGCODE_API_URL: ${AGCODE_API_URL}
+      AGOFFICE_API_URL: ${AGOFFICE_API_URL}

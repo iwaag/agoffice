@@ -21,4 +21,4 @@ COPY ./deploy/k8s/remote-config.yaml /app/deploy/k8s/remote-config.yaml
 EXPOSE 8000
 
 # Define the command to run the application when the container starts
-CMD ["uv", "run", "uvicorn", "agcode_api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uv", "run", "uvicorn", "agoffice_api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

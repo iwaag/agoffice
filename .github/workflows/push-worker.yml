@@ -13,7 +13,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_BASE: ghcr.io/iwaag/agcode
+  IMAGE_BASE: ghcr.io/iwaag/agoffice
 
 jobs:
   build-push:
@@ -37,7 +37,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       # worker_noob is not ready for deployment yet.
-      # - name: Build & push agcode-worker
+      # - name: Build & push agoffice-worker
       #   uses: docker/build-push-action@v6
       #   with:
       #     context: .

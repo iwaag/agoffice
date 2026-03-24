@@ -5,18 +5,18 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 TARGET="${1:-pro}"
 IMAGE_ENV_NAME="LOCAL_IMAGE_NAME_CODER_PRO"
-DEFAULT_IMAGE_NAME="agcode/coder-pro:dev"
+DEFAULT_IMAGE_NAME="agoffice/coder-pro:dev"
 DOCKERFILE_PATH="${ROOT_DIR}/deploy/docker/worker-pro.Dockerfile"
 
 case "${TARGET}" in
   pro)
     IMAGE_ENV_NAME="LOCAL_IMAGE_NAME_CODER_PRO"
-    DEFAULT_IMAGE_NAME="agcode/coder-pro:dev"
+    DEFAULT_IMAGE_NAME="agoffice/coder-pro:dev"
     DOCKERFILE_PATH="${ROOT_DIR}/deploy/docker/worker-pro.Dockerfile"
     ;;
   noob)
     IMAGE_ENV_NAME="LOCAL_IMAGE_NAME_CODER_NOOB"
-    DEFAULT_IMAGE_NAME="agcode/coder-noob:dev"
+    DEFAULT_IMAGE_NAME="agoffice/coder-noob:dev"
     DOCKERFILE_PATH="${ROOT_DIR}/deploy/docker/worker-noob.Dockerfile"
     ;;
   *)

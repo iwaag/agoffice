@@ -1,6 +1,6 @@
 services:
   coder_pro:
-    image: iwaag/agcode-coder-pro:latest
+    image: iwaag/agoffice-coder-pro:latest
     build:
       context: ../..
       dockerfile: deploy/docker/worker-pro.Dockerfile
@@ -18,7 +18,7 @@ services:
       #CODEX_API_KEY: ${CODEX_API_KEY}
 
   coder_noob:
-    image: iwaag/agcode-coder-noob:latest
+    image: iwaag/agoffice-coder-noob:latest
     build:
       context: ../..
       dockerfile: deploy/docker/worker-noob.Dockerfile
