@@ -9,8 +9,8 @@ from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 
-from agpyutils.task.hub import TaskHub
-from agpyutils.task import get_task_hub
+from agpy.task.hub import TaskHub
+from agpy.task import get_task_hub
 
 
 hub = get_task_hub()

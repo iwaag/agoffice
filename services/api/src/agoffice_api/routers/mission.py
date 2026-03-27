@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from agpyutils.auth import AuthInfo, get_auth_info
+from agpy.auth import AuthInfo, get_auth_info
 
 from agoffice_domain import mission_service
 from agoffice_domain.errors import (

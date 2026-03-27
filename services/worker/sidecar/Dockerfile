@@ -11,7 +11,7 @@ RUN curl -Lk 'https://code.visualstudio.com/sha/download?build=stable&os=cli-alp
 
 # Python dependencies
 RUN pip install --no-cache-dir fastapi uvicorn
-RUN pip install --no-cache-dir git+https://github.com/iwaag/agpyutils.git@main
+RUN pip install --no-cache-dir git+https://github.com/iwaag/agpy.git@main
 COPY config/gitconfig /root/.gitconfig
 COPY scripts/entrypoint.sh /scripts/entrypoint.sh
 RUN chmod +x /scripts/entrypoint.sh

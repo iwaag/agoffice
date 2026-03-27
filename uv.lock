@@ -12,7 +12,7 @@ name = "agoffice"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "agpyutils" },
+    { name = "agpy" },
     { name = "fastapi", extra = ["standard"] },
     { name = "httpx" },
     { name = "kubernetes" },
@@ -27,7 +27,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "agpyutils", git = "https://github.com/iwaag/agpyutils.git?rev=main" },
+    { name = "agpy", git = "https://github.com/iwaag/agpy.git?rev=main" },
     { name = "fastapi", extras = ["standard"] },
     { name = "httpx" },
     { name = "kubernetes" },
@@ -41,9 +41,9 @@ requires-dist = [
 ]
 
 [[package]]
-name = "agpyutils"
+name = "agpy"
 version = "0.1.39"
-source = { git = "https://github.com/iwaag/agpyutils.git?rev=main#69aa8ab335745df5d784ff7862a97705608d822c" }
+source = { git = "https://github.com/iwaag/agpy.git?rev=main#69aa8ab335745df5d784ff7862a97705608d822c" }
 dependencies = [
     { name = "cryptography" },
     { name = "fastapi" },

@@ -7,8 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from agpyutils.auth import auth_info_from_bearer_token
-from agpyutils.task import get_task_hub, models as task_models
+from agpy.auth import auth_info_from_bearer_token
+from agpy.task import get_task_hub, models as task_models
 from pydantic import BaseModel
 
 VSCODE_CLI_BIN = os.getenv("VSCODE_CLI_BIN", "code")

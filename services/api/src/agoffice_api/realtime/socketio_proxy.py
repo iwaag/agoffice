@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from urllib.parse import parse_qs
 
 import socketio
-from agpyutils.auth import get_auth_info
+from agpy.auth import get_auth_info
 from fastapi.security import HTTPAuthorizationCredentials
 
 from agoffice_domain import room_service

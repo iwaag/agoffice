@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from agpyutils.auth import get_auth_info, AuthInfo
+from agpy.auth import get_auth_info, AuthInfo
 import httpx
 from sse_starlette.sse import EventSourceResponse
 

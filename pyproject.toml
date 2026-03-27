@@ -19,7 +19,7 @@ dependencies = [
     "kubernetes",
     "nanoid",
     "psycopg2-binary",
-    "agpyutils @ git+https://github.com/iwaag/agpyutils.git@main",
+    "agpy @ git+https://github.com/iwaag/agpy.git@main",
     "redis>=5.0",
     "sse-starlette>=2.0",
 ]
